@@ -23,7 +23,12 @@ ARG VERSION="stable"
 
 RUN curl https://sh.rustup.rs -sSf | \
     sh -s -- -y --default-toolchain $VERSION --component clippy rustfmt --profile minimal --no-modify-path \
-    && cargo install cargo-audit \
     && chmod -R a+rw $RUSTUP_HOME $CARGO_HOME
+
+RUN cargo install cargo-audit
+
+RUN cargo install sccache
+
+ENV RUSTC_WRAPPER="/opt/rust/cargo/bin/sccache"
 
 CMD ["bash"]
