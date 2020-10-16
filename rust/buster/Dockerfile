@@ -27,7 +27,7 @@ RUN curl https://sh.rustup.rs -sSf | \
 
 RUN cargo install cargo-audit
 
-RUN cargo install sccache
+RUN cargo install --git https://github.com/mozilla/sccache --rev 6628e1f70db3d583cb5e79210603ad878de3d315
 
 ENV RUSTC_WRAPPER="/opt/rust/cargo/bin/sccache"
 
