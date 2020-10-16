@@ -49,7 +49,7 @@ def buildImage(Map config = [:]) {
   assert config.version : "Missing config.version"
 
   def directory = "${config.name}/${config.variant}"
-  def name = "${REPO_BASE}/${config.name}:${config.variant}-${config.version}"
+  def name = "${REPO_BASE}/${config.name}:${config.variant}-1-${config.version}"
 
   // PR jobs have CHANGE_BRANCH set correctly
   // branch jobs have BRANCH_NAME set correctly
