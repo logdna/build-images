@@ -54,7 +54,7 @@ def buildImage(Map config = [:]) {
   // PR jobs have CHANGE_BRANCH set correctly
   // branch jobs have BRANCH_NAME set correctly
   // Neither are consistent, so we have to do this :[]
-  def shouldPush = ((env.CHANGE_BRANCH || env.BRANCH_NAME) == "master")
+  def shouldPush = ((env.CHANGE_BRANCH || env.BRANCH_NAME) == "main")
 
   List<String> buildArgs = [
     "--progress"
