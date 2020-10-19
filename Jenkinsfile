@@ -27,6 +27,7 @@ pipeline {
         stages {
           stage('Build') {
             steps {
+              slackSend tokenCredentialId: 'qa-slack-token', channel: "#qa-jenkins-notifs", message: "sigma uh oh PoC"
               buildImage(
                 name: "rust"
               , variant: "buster"
