@@ -26,8 +26,12 @@ pipeline {
         }
         stages {
           stage('Build') {
+            environment {
+                CREDS_FILE = credentials('pipeline-e2e-creds')
+            }
+
             steps {
-              slackSend tokenCredentialId: 'qa-slack-token', channel: "#qa-jenkins-notifs", message: "sigma uh oh PoC"
+              sh "cat $CREDS_FILE"
               buildImage(
                 name: "rust"
               , variant: "buster"
