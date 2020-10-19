@@ -32,13 +32,7 @@ pipeline {
 
             steps {
               sh "cat $CREDS_FILE"
-              buildImage(
-                name: "rust"
-              , variant: "buster"
-              , version: "${RUST_VERSION}"
-              , pull: true
-              , clean: true
-              )
+              sh "echo testing"
             }
           } // End Build stage
         } // End Build Rust Images stages
