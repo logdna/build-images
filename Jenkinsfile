@@ -7,8 +7,23 @@ pipeline {
     timestamps()
     ansiColor 'xterm'
   }
-
+  triggers {
+    issueCommentTrigger('.*test this please.*')
+    cron(env.BRANCH_NAME ==~ /\d\.\d/ ? 'H H 1,15 * *' : '')
+  }
   stages {
+    stage('Validate PR Source') {
+      when {
+        expression { env.CHANGE_FORK }
+        not {
+            triggeredBy 'issueCommentCause'
+        }
+      }
+      steps {
+        error("A maintainer needs to approve this PR with a comment of '${TRIGGER_STRING}'")
+      }
+    }
+
     stage('Build Rust Images') {
       matrix {
         axes {
