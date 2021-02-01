@@ -25,7 +25,7 @@ RUN curl https://sh.rustup.rs -sSf | \
     sh -s -- -y --default-toolchain $VERSION --component clippy rustfmt --profile minimal --no-modify-path \
     && chmod -R a+rw $RUSTUP_HOME $CARGO_HOME
 
-RUN cargo install cargo-audit --version ~0.11
+RUN cargo install cargo-audit --version ~0.13
 
 RUN cargo install --git https://github.com/mozilla/sccache --rev 6628e1f70db3d583cb5e79210603ad878de3d315
 
