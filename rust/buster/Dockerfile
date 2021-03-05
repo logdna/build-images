@@ -4,7 +4,7 @@ ENV CARGO_HOME="/opt/rust/cargo"
 ENV RUSTUP_HOME="/opt/rust/rustup"
 ENV PATH="${CARGO_HOME}/bin:${PATH}"
 
-RUN DEPS='gcc g++ make xz-utils locales libexpat1-dev gettext libz-dev libssl-dev autoconf pkg-config bzip2 libsystemd-dev systemd lsof procps' \
+RUN DEPS='gcc g++ make xz-utils locales libexpat1-dev gettext libz-dev libssl-dev autoconf pkg-config bzip2 libsystemd-dev systemd lsof procps llvm clang' \
   && apt-get update \
   && apt-get install -y --no-install-recommends $DEPS \
   && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
