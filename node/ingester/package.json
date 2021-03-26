@@ -1,0 +1,12 @@
+{
+  "name": "mock-ingester-js",
+  "version": "0.0.1",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "fastify": "^3.8.0",
+    "fastify-compress": "^3.4.0",
+    "async-mutex": "^0.3.1"
+  }
+}
