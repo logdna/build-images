@@ -36,6 +36,14 @@ ENV TERM xterm
 
 ARG VERSION="stable"
 
+# Install an up to date llvm
+COPY llvm-snapshot.gpg.key /llvm-snapshot.gpg.key
+RUN apt update && apt install -y&& \
+    apt-key add /llvm-snapshot.gpg.key && \
+    add-apt-repository "deb http://apt.llvm.org/buster/ llvm-toolchain-buster-12 main" && \
+    apt update -y && \
+    apt install -y clang-12 llvm-12
+
 # Install rust
 RUN curl https://sh.rustup.rs -sSf | \
     sh -s -- -y --default-toolchain $VERSION --component clippy rustfmt --profile minimal --no-modify-path && \
@@ -119,8 +127,5 @@ RUN echo "Building rocksdb" && \
     cp -r include /usr/local/rocksdb/ && \
     cp -r include/* /usr/include/ && \
     rm -R /tmp/rocksdb/
-
-ENV ROCKSDB_LIB_DIR /usr/local/rocksdb/lib
-ENV ROCKSDB_INCLUDE_DIR /usr/local/rocksdb/include
 
 CMD ["bash"]
