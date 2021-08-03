@@ -29,7 +29,7 @@ pipeline {
         axes {
           axis {
             name 'RUST_VERSION'
-            values 'stable', 'beta', '1.49.0'
+            values 'stable', 'beta', '1.53.0'
           }
         }
 

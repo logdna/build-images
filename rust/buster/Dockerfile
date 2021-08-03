@@ -15,11 +15,11 @@ RUN DEPS='build-essential binutils ca-certificates curl file gcc g++ libtool m4 
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc
 
-
 # Install a musl cross compiler for x86_64 using musl-cross-make
 RUN mkdir /tmp/musl-cross && cd /tmp/musl-cross && \
     curl --retry 3 -sSfL "https://github.com/richfelker/musl-cross-make/archive/v0.9.9.tar.gz" -O &&\
     tar --strip-components=1 -xzf "v0.9.9.tar.gz" && \
+    echo "GCC_CONFIG += --enable-default-pie" >> config.mak && \
     make install "-j$(nproc)" \
         GCC_VER=9.2.0 \
         MUSL_VER=1.2.0 \
@@ -28,6 +28,14 @@ RUN mkdir /tmp/musl-cross && cd /tmp/musl-cross && \
         LINUX_HEADERS_SITE=https://ci-mirrors.rust-lang.org/rustc/sabotage-linux-tarballs \
         OUTPUT=/usr/local/ \
         TARGET=x86_64-linux-musl && \
+    make install "-j$(nproc)" \
+        GCC_VER=9.2.0 \
+        MUSL_VER=1.2.0 \
+        BINUTILS_VER=2.33.1 \
+        DL_CMD='curl --retry 3 -sSfL -C - -o' \
+        LINUX_HEADERS_SITE=https://ci-mirrors.rust-lang.org/rustc/sabotage-linux-tarballs \
+        OUTPUT=/usr/local/ \
+        TARGET=aarch64-linux-musl && \
     rm -rf /tmp/musl-cross
 
 ENV LANG en_US.UTF-8
@@ -45,11 +53,13 @@ RUN apt update && apt install -y&& \
     apt install -y clang-12 llvm-12
 
 # Install rust
+
+ENV CARGO_HOME=/opt/rust/cargo
 RUN curl https://sh.rustup.rs -sSf | \
     sh -s -- -y --default-toolchain $VERSION --component clippy rustfmt --profile minimal --no-modify-path && \
     chmod -R a+rw $RUSTUP_HOME $CARGO_HOME && \
-    env CARGO_HOME=/opt/rust/cargo \
-    rustup target add x86_64-unknown-linux-musl
+    rustup target add x86_64-unknown-linux-musl && \
+    rustup target add aarch64-unknown-linux-musl
 
 RUN cargo install cargo-audit --version ~0.14
 
@@ -60,7 +70,10 @@ ENV RUSTC_WRAPPER="/opt/rust/cargo/bin/sccache"
 # Set up cargo env vars for cross compiling
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=x86_64-linux-musl-gcc \
     CC_x86_64_unknown_linux_musl=x86_64-linux-musl-gcc \
-    CXX_x86_64_unknown_linux_musl=x86_64-linux-musl-g++
+    CXX_x86_64_unknown_linux_musl=x86_64-linux-musl-g++ \
+    CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-musl-gcc \
+    CC_aarch64_unknown_linux_musl=aarch64-linux-musl-gcc \
+    CXX_aarch64_unknown_linux_musl=aarch64-linux-musl-g++
 
 # Install static openssl
 ARG OPENSSL_VERSION=1.1.1i
@@ -81,6 +94,16 @@ RUN echo "Building OpenSSL" && \
     env C_INCLUDE_PATH=/usr/local/musl/include/ make && \
     make install && \
     rm /usr/local/musl/include/linux /usr/local/musl/include/asm /usr/local/musl/include/asm-generic && \
+    rm -r /tmp/*
+
+## Install static Zlib
+ARG ZLIB_VERSION=1.2.11
+RUN echo "Building zlib" && \
+    cd /tmp && \
+    curl -fLO "http://zlib.net/zlib-$ZLIB_VERSION.tar.gz" && \
+    tar xzf "zlib-$ZLIB_VERSION.tar.gz" && cd "zlib-$ZLIB_VERSION" && \
+    CC=aarch64-linux-musl-gcc ./configure --static --prefix=/usr/local/musl && \
+    make && make install && \
     rm -r /tmp/*
 
 # Install static Zlib
@@ -120,12 +143,27 @@ RUN echo "Building rocksdb" && \
     PORTABLE=1 CCFLAGS=-fPIC CXXFLAGS=-fPIC \
     CC=x86_64-linux-musl-gcc CXX=x86_64-linux-musl-g++ \
     make static_lib && \
-    mkdir -p /usr/local/rocksdb/lib && \
-    mkdir /usr/local/rocksdb/include && \
-    cp librocksdb.a* /usr/local/rocksdb/lib && \
-    cp /usr/local/rocksdb/lib/librocksdb.a* /usr/lib/ && \
-    cp -r include /usr/local/rocksdb/ && \
-    cp -r include/* /usr/include/ && \
+    mkdir -p /usr/local/rocksdb/x86_64-linux-musl/lib && \
+    mkdir /usr/local/rocksdb/x86_64-linux-musl/include && \
+    cp librocksdb.a* /usr/local/rocksdb/x86_64-linux-musl/lib && \
+    cp -r include /usr/local/rocksdb/x86_64-linux-musl/ && \
+    cp -r include/* /usr/include/x86_64-linux-musl/ && \
+    rm -R /tmp/rocksdb/
+
+# Install static -fPIC Rocksdb
+RUN echo "Building rocksdb" && \
+    cd /tmp && \
+    git clone https://github.com/facebook/rocksdb.git && \
+    cd rocksdb && \
+    git checkout v6.19.3 && \
+    PORTABLE=1 CCFLAGS=-fPIC CXXFLAGS=-fPIC \
+    CC=aarch64-linux-musl-gcc CXX=aarch64-linux-musl-g++ \
+    make static_lib && \
+    mkdir -p /usr/local/rocksdb/aarch64-linux-musl/lib && \
+    mkdir /usr/local/rocksdb/aarch64-linux-musl/include && \
+    cp librocksdb.a* /usr/local/rocksdb/aarch64-linux-musl/lib && \
+    cp -r include /usr/local/rocksdb/aarch64-linux-musl/ && \
+    cp -r include/* /usr/include/aarch64-linux-musl/ && \
     rm -R /tmp/rocksdb/
 
 CMD ["bash"]
