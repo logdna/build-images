@@ -43,14 +43,24 @@ ARG VERSION="stable"
 ENV CARGO_HOME=/opt/rust/cargo
 RUN curl https://sh.rustup.rs -sSf | \
     sh -s -- -y --default-toolchain $VERSION --component clippy rustfmt --profile minimal --no-modify-path && \
-    chmod -R a+rw $RUSTUP_HOME $CARGO_HOME && \
-    rustup target add x86_64-unknown-linux-musl && \
-    rustup target add aarch64-unknown-linux-musl
+    chmod -R a+rw $RUSTUP_HOME $CARGO_HOME
 
-RUN cargo install sccache
+# Install sccache
+RUN curl https://api.github.com/repos/mozilla/sccache/releases/latest \
+    | grep "browser_download_url" \
+    | grep -E "sccache-v.*x86_64-unknown-linux-musl.tar.gz\"$" \
+    | awk '{$1=$1;print}' \
+    | cut -f2 -d" " \
+    | xargs curl -LO \
+    && mkdir -p /tmp/sccache \
+    && tar -C /tmp/sccache --strip-components=1 -xf ../sccache-*-x86_64-unknown-linux-musl.tar.gz \
+    && mv /tmp/sccache/sccache /usr/local/bin/sccache \
+    && chmod +x /usr/local/bin/sccache
 
-ENV RUSTC_WRAPPER="/opt/rust/cargo/bin/sccache"
-ENV CC_WRAPPER="/opt/rust/cargo/bin/sccache"
+
+
+ENV RUSTC_WRAPPER="/usr/local/bin/sccache"
+ENV CC_WRAPPER="/usr/local/bin/sccache"
 
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     cargo install cargo-audit flamegraph
