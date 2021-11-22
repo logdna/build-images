@@ -1,4 +1,8 @@
-FROM buildpack-deps:bullseye-curl
+ARG DEBIAN_VERSION=buster
+FROM buildpack-deps:${DEBIAN_VERSION}-curl
+
+# Needs to be in this scope too
+ARG DEBIAN_VERSION=buster
 
 ENV CARGO_HOME="/opt/rust/cargo"
 ENV RUSTUP_HOME="/opt/rust/rustup"
@@ -48,7 +52,7 @@ ARG VERSION="stable"
 COPY llvm-snapshot.gpg.key /llvm-snapshot.gpg.key
 RUN apt update && apt install -y&& \
     apt-key add /llvm-snapshot.gpg.key && \
-    add-apt-repository "deb http://apt.llvm.org/bullseye/ llvm-toolchain-bullseye-12 main" && \
+    add-apt-repository "deb http://apt.llvm.org/${DEBIAN_VERSION}/ llvm-toolchain-${DEBIAN_VERSION}-12 main" && \
     apt update -y && \
     apt install -y clang-12 llvm-12
 
