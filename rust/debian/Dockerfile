@@ -1,8 +1,8 @@
-ARG DEBIAN_VERSION=buster
-FROM buildpack-deps:${DEBIAN_VERSION}-curl
+ARG VARIANT_VERSION=buster
+FROM buildpack-deps:${VARIANT_VERSION}-curl
 
 # Needs to be in this scope too
-ARG DEBIAN_VERSION=buster
+ARG VARIANT_VERSION=buster
 
 ENV CARGO_HOME="/opt/rust/cargo"
 ENV RUSTUP_HOME="/opt/rust/rustup"
@@ -51,9 +51,8 @@ ARG VERSION="stable"
 # Install an up to date llvm
 COPY llvm-snapshot.gpg.key /llvm-snapshot.gpg.key
 RUN apt update && apt install -y && \
-    echo "debian version: $DEBIAN_VERSION" && \
     apt-key add /llvm-snapshot.gpg.key && \
-    add-apt-repository "deb http://apt.llvm.org/${DEBIAN_VERSION}/ llvm-toolchain-${DEBIAN_VERSION}-12 main" && \
+    add-apt-repository "deb http://apt.llvm.org/${VARIANT_VERSION}/ llvm-toolchain-${VARIANT_VERSION}-12 main" && \
     apt update -y && \
     apt install -y clang-12 llvm-12 lldb
 
