@@ -28,7 +28,7 @@ pipeline {
       matrix {
         axes {
           axis {
-            name 'RUST_VERSION'
+            name 'RUSTC_VERSION'
             values 'stable', 'beta', '1.54.0'
           }
           axis {
@@ -46,14 +46,32 @@ pipeline {
         stages {
           stage('Build') {
             steps {
-              buildImage(
-                name: "rust"
-              , variant_base: "debian"
-              , variant_version: "${VARIANT_VERSION}"
-              , version: "${RUST_VERSION}"
-              , pull: true
-              , clean: true
-              )
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws',
+                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                ]]){
+                    sh """
+                        echo "[default]" > ${PWD}/.aws_creds
+                        echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" >> ${PWD}/.aws_creds
+                        echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" >> ${PWD}/.aws_creds
+                    """
+                }
+                buildImage(
+                    dockerfile: "Dockerfile.base"
+                    , name: "rust"
+                    , variant_base: "debian"
+                    , variant_version: "${VARIANT_VERSION}"
+                    , version: "${RUSTC_VERSION}"
+                    , pull: true
+                    , clean: true
+                )
+            }
+            post {
+                always {
+                    sh "rm ${PWD}/.aws_creds"
+                }
             }
           } // End Build stage
         } // End Build Rust Images stages
@@ -85,6 +103,14 @@ def buildImage(Map config = [:]) {
   if (config.pull) {
     buildArgs.push("--pull")
   }
+
+  if (config.dockerfile) {
+    buildArgs.push("-f")
+    buildArgs.push([directory, config.dockerfile].join("/"))
+  }
+
+  buildArgs.push("--secret")
+  buildArgs.push("id=aws,src=${env.WORKSPACE}/.aws/credentials")
 
   buildArgs.push("--build-arg")
   buildArgs.push(["VERSION", config.version].join("="))
