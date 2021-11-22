@@ -31,6 +31,10 @@ pipeline {
             name 'RUST_VERSION'
             values 'stable', 'beta', '1.53.0'
           }
+          axis {
+            name 'DEBIAN_VERSION'
+            values 'buster', 'bullseye'
+          }
         }
 
         agent {
@@ -44,8 +48,9 @@ pipeline {
             steps {
               buildImage(
                 name: "rust"
-              , variant: "buster"
+              , variant: "${DEBIAN_VERSION}"
               , version: "${RUST_VERSION}"
+              , debian_version: "${DEBIAN_VERSION}"
               , pull: true
               , clean: true
               )
@@ -82,6 +87,9 @@ def buildImage(Map config = [:]) {
 
   buildArgs.push("--build-arg")
   buildArgs.push(["VERSION", config.version].join("="))
+
+  buildArgs.push("--build-arg")
+  buildArgs.push(["DEBIAN_VERSION", config.variant].join("="))
 
   buildArgs.push(directory)
 
