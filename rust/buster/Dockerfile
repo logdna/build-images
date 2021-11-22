@@ -50,11 +50,12 @@ ARG VERSION="stable"
 
 # Install an up to date llvm
 COPY llvm-snapshot.gpg.key /llvm-snapshot.gpg.key
-RUN apt update && apt install -y&& \
+RUN apt update && apt install -y && \
+    echo "debian version: $DEBIAN_VERSION" && \
     apt-key add /llvm-snapshot.gpg.key && \
     add-apt-repository "deb http://apt.llvm.org/${DEBIAN_VERSION}/ llvm-toolchain-${DEBIAN_VERSION}-12 main" && \
     apt update -y && \
-    apt install -y clang-12 llvm-12
+    apt install -y clang-12 llvm-12 lldb
 
 # Install rust
 
