@@ -81,7 +81,7 @@ ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=x86_64-linux-musl-gcc \
     CXX_aarch64_unknown_linux_musl=aarch64-linux-musl-g++
 
 # Install static openssl
-ARG OPENSSL_VERSION=1.1.1i
+ARG OPENSSL_VERSION=1.1.1l
 
 RUN echo "Building OpenSSL" && \
     ls /usr/include/linux && \
@@ -144,7 +144,7 @@ RUN echo "Building rocksdb" && \
     cd /tmp && \
     git clone https://github.com/facebook/rocksdb.git && \
     cd rocksdb && \
-    git checkout v6.19.3 && \
+    git checkout v6.22.1 && \
     PORTABLE=1 CCFLAGS=-fPIC CXXFLAGS=-fPIC \
     CC=x86_64-linux-musl-gcc CXX=x86_64-linux-musl-g++ \
     make static_lib && \
