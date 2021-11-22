@@ -8,7 +8,7 @@ ENV CARGO_HOME="/opt/rust/cargo"
 ENV RUSTUP_HOME="/opt/rust/rustup"
 ENV PATH="${CARGO_HOME}/bin:${PATH}"
 
-RUN DEPS='build-essential binutils ca-certificates curl file gcc g++ libtool m4 libc6-dev make xz-utils locales libexpat1-dev gettext libz-dev libssl-dev autoconf pkg-config bzip2 libsystemd-dev systemd lsof procps git cmake software-properties-common automake' \
+RUN DEPS='build-essential binutils ca-certificates curl file gcc g++ libtool m4 libc6-dev make xz-utils locales libexpat1-dev gettext libz-dev libssl-dev autoconf pkg-config bzip2 libsystemd-dev systemd lsof procps git cmake software-properties-common automake hunspell-en-gb hunspell-tools' \
   && apt-get update \
   && apt-get install -y --no-install-recommends $DEPS \
   && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
@@ -169,5 +169,10 @@ RUN echo "Building rocksdb" && \
     cp -r include /usr/local/rocksdb/aarch64-linux-musl/ && \
     cp -r include/* /usr/include/aarch64-linux-musl/ && \
     rm -R /tmp/rocksdb/
+
+RUN unmunch /usr/share/hunspell/en_GB.dic /usr/share/hunspell/en_GB.aff | grep -v "'s" > /dict.txt
+
+RUN apt update -y && apt install -y linux-perf
+RUN cargo install flamegraph
 
 CMD ["bash"]
