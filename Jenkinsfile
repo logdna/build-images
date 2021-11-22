@@ -24,7 +24,7 @@ pipeline {
       }
     }
 
-    stage('Build Rust Images') {
+    stage('Build Rust Variant Images') {
       matrix {
         axes {
           axis {
@@ -60,7 +60,7 @@ pipeline {
                 }
                 buildImage(
                     dockerfile: "Dockerfile.base"
-                    , name: "rust"
+                    , name: "rust_base"
                     , variant_base: "debian"
                     , variant_version: "${VARIANT_VERSION}"
                     , version: "${RUSTC_VERSION}"
@@ -77,6 +77,64 @@ pipeline {
         } // End Build Rust Images stages
       } // End matrix
     } // End Build Rust Images stage
+    stage('Build Rust Arch specific Images') {
+      matrix {
+        axes {
+          axis {
+            name 'RUSTC_VERSION'
+            values 'stable', 'beta', '1.54.0'
+          }
+          axis {
+            name 'VARIANT_VERSION'
+            values 'buster', 'bullseye'
+          }
+          axis {
+            name 'ARCH'
+            values 'x86_64', 'aarch64'
+          }
+        }
+
+        agent {
+          node {
+            label 'ec2-fleet'
+            customWorkspace "docker-images-${BUILD_NUMBER}"
+          }
+        }
+        stages {
+          stage('Build') {
+            steps {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws',
+                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                ]]){
+                    sh """
+                        echo "[default]" > ${PWD}/.aws_creds
+                        echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" >> ${PWD}/.aws_creds
+                        echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" >> ${PWD}/.aws_creds
+                    """
+                }
+                buildImage(
+                    dockerfile: "Dockerfile"
+                    , base_image_name: "rust_base",
+                    , name: "rust"
+                    , variant_base: "debian"
+                    , variant_version: "${VARIANT_VERSION}"
+                    , version: "${RUSTC_VERSION}"
+                    , pull: true
+                    , clean: true
+                )
+            }
+            post {
+                always {
+                    sh "rm ${PWD}/.aws_creds"
+                }
+            }
+          } // End Build stage
+        } // End Build Rust Images stages
+      }
+    }
   }
 }
 
@@ -102,6 +160,11 @@ def buildImage(Map config = [:]) {
 
   if (config.pull) {
     buildArgs.push("--pull")
+  }
+
+  if (config.base_image_name) {
+    buildArgs.push("--build-arg")
+    buildArgs.push(["BASE_IMAGE", "${REPO_BASE}/${config.base_name}:${config.variant_version}-1-${config.version}"].join("="))
   }
 
   if (config.dockerfile) {
