@@ -62,16 +62,27 @@ pipeline {
                         echo 'AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID' >> ${WORKSPACE}/.aws_creds
                         echo 'AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY' >> ${WORKSPACE}/.aws_creds
                     """
-                    buildImage(
-                        dockerfile: "Dockerfile.base"
-                        , name: "rust"
-                        , variant_base: "debian"
-                        , variant_version: "${VARIANT_VERSION}"
-                        , version: "${RUSTC_VERSION}"
-                        , image_suffix: "base"
-                        , pull: true
-                        , clean: true
-                    )
+                    script {
+                        def image_name = generateImageName(
+                          name: "rust"
+                          , variant_base: "debian"
+                          , variant_version: "${VARIANT_VERSION}"
+                          , version: "${RUSTC_VERSION}"
+                          , image_suffix: "base"
+                        )
+
+                        buildImage(
+                          name: "rust"
+                          , variant_base: "debian"
+                          , variant_version: "${VARIANT_VERSION}"
+                          , version: "${RUSTC_VERSION}"
+                          , dockerfile: "Dockerfile.base"
+                          , image_name: image_name
+                          , pull: true
+                          , push: true
+                          , clean: false
+                        )
+                    }
                 }
             }
             post {
@@ -120,17 +131,41 @@ pipeline {
                         echo 'AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID' >> ${WORKSPACE}/.aws_creds
                         echo 'AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY' >> ${WORKSPACE}/.aws_creds
                     """
-                    buildImage(
-                        dockerfile: "Dockerfile"
-                        , base_suffix: "base",
-                        , name: "rust"
+                    script {
+                      def image_name = generateImageName(
+                        name: "rust"
                         , variant_base: "debian"
                         , variant_version: "${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
                         , image_suffix: "${ARCH}"
+                      )
+                      def base_name = generateImageName(
+                        name: "rust"
+                        , variant_base: "debian"
+                        , variant_version: "${VARIANT_VERSION}"
+                        , version: "${RUSTC_VERSION}"
+                        , image_suffix: "base"
+                      )
+                      println "base name: ${base_name}"
+
+                      buildImage(
+                        name: "rust"
+                        , variant_base: "debian"
+                        , variant_version: "${VARIANT_VERSION}"
+                        , version: "${RUSTC_VERSION}"
+                        , dockerfile: "Dockerfile"
+                        , image_name: image_name
+                        , base_name: base_name
                         , pull: true
                         , clean: true
-                    )
+                      )
+
+                      try {
+                        gcr.clean(base_name)
+                      } catch(Exception ex) {
+                        println("image already cleaned up");
+                      }
+                    }
                 }
             }
             post {
@@ -145,27 +180,32 @@ pipeline {
   }
 }
 
-def buildImage(Map config = [:]) {
+def generateImageName(Map config = [:]){
   String REPO_BASE = "us.gcr.io/logdna-k8s"
   assert config.name : "Missing config.name"
   assert config.variant_base : "Missing config.variant_base"
   assert config.variant_version : "Missing config.variant_version"
   assert config.version : "Missing config.version"
 
-  def directory = "${config.name}/${config.variant_base}"
-  def name
-
   if (config.image_suffix) {
-    name = "${REPO_BASE}/${config.name}:${config.variant_version}-1-${config.version}-${config.image_suffix}"
+    return "${REPO_BASE}/${config.name}:${config.variant_version}-1-${config.version}-${config.image_suffix}"
   } else {
-    name = "${REPO_BASE}/${config.name}:${config.variant_version}-1-${config.version}"
+    return "${REPO_BASE}/${config.name}:${config.variant_version}-1-${config.version}"
   }
+}
 
+def buildImage(Map config = [:]) {
+  assert config.name : "Missing config.name"
+  assert config.variant_base : "Missing config.variant_base"
+  assert config.variant_version : "Missing config.variant_version"
+  assert config.version : "Missing config.version"
 
-  // PR jobs have CHANGE_BRANCH set correctly
+    // PR jobs have CHANGE_BRANCH set correctly
   // branch jobs have BRANCH_NAME set correctly
   // Neither are consistent, so we have to do this :[]
-  def shouldPush = ((env.CHANGE_BRANCH || env.BRANCH_NAME) == "main")
+  def shouldPush =  ((env.CHANGE_BRANCH || env.BRANCH_NAME) == "main" || config.push)
+
+  def directory = "${config.name}/${config.variant_base}"
 
   List<String> buildArgs = [
     "--progress"
@@ -188,9 +228,9 @@ def buildImage(Map config = [:]) {
     buildArgs.push("--pull")
   }
 
-  if (config.base_suffix) {
+  if (config.base_name) {
     buildArgs.push("--build-arg")
-    buildArgs.push(["BASE_IMAGE", "${REPO_BASE}/${config.name}:${config.variant_version}-1-${config.version}-${config.base_suffix}"].join("="))
+    buildArgs.push(["BASE_IMAGE", config.base_name].join("="))
   }
 
   if (config.dockerfile) {
@@ -209,7 +249,7 @@ def buildImage(Map config = [:]) {
 
   buildArgs.push(directory)
 
-  def image = docker.build(name, buildArgs.join(' '))
+  def image = docker.build(config.image_name, buildArgs.join(' '))
 
   if (shouldPush) {
     image.push()

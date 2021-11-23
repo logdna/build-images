@@ -61,5 +61,9 @@ ENV RUSTC_WRAPPER="/usr/local/bin/sccache"
 ENV CC_WRAPPER="/usr/local/bin/sccache"
 
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
+    if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
     cargo install cargo-audit flamegraph && \
     sccache --show-stats
+
+ENV SCCACHE_BUCKET=
+ENV SCCACHE_REGION=
