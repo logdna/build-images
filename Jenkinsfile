@@ -127,6 +127,7 @@ pipeline {
                         , variant_base: "debian"
                         , variant_version: "${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
+                        , image_suffix: "${ARCH}"
                         , pull: true
                         , clean: true
                     )
