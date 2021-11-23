@@ -56,9 +56,9 @@ pipeline {
                     secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
                 ]]){
                     sh """
-                        echo "[default]" > ${PWD}/.aws_creds
-                        echo 'AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID' >> ${PWD}/.aws_creds
-                        echo 'AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY' >> ${PWD}/.aws_creds
+                        echo "[default]" > ${WORKSPACE}/.aws_creds
+                        echo 'AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID' >> ${WORKSPACE}/.aws_creds
+                        echo 'AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY' >> ${WORKSPACE}/.aws_creds
                     """
                     buildImage(
                         dockerfile: "Dockerfile.base"
@@ -114,9 +114,9 @@ pipeline {
                     secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
                 ]]){
                     sh """
-                        echo "[default]" > ${PWD}/.aws_creds
-                        echo 'AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID' >> ${PWD}/.aws_creds
-                        echo 'AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY' >> ${PWD}/.aws_creds
+                        echo "[default]" > ${WORKSPACE}/.aws_creds
+                        echo 'AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID' >> ${WORKSPACE}/.aws_creds
+                        echo 'AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY' >> ${WORKSPACE}/.aws_creds
                     """
                     buildImage(
                         dockerfile: "Dockerfile"
