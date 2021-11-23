@@ -60,10 +60,11 @@ pipeline {
                 }
                 buildImage(
                     dockerfile: "Dockerfile.base"
-                    , name: "rust_base"
+                    , name: "rust"
                     , variant_base: "debian"
                     , variant_version: "${VARIANT_VERSION}"
                     , version: "${RUSTC_VERSION}"
+                    , image_suffix: "-base"
                     , pull: true
                     , clean: true
                 )
@@ -117,7 +118,7 @@ pipeline {
                 }
                 buildImage(
                     dockerfile: "Dockerfile"
-                    , base_image_name: "rust_base",
+                    , base_suffix: "-base",
                     , name: "rust"
                     , variant_base: "debian"
                     , variant_version: "${VARIANT_VERSION}"
@@ -146,7 +147,14 @@ def buildImage(Map config = [:]) {
   assert config.version : "Missing config.version"
 
   def directory = "${config.name}/${config.variant_base}"
-  def name = "${REPO_BASE}/${config.name}:${config.variant_version}-1-${config.version}"
+  def name
+
+  if (config.base_suffix) {
+    name = "${REPO_BASE}/${config.name}:${config.variant_version}-1-${config.version}-${config.base_suffix}"
+  } else {
+    name = "${REPO_BASE}/${config.name}:${config.variant_version}-1-${config.version}"
+  }
+
 
   // PR jobs have CHANGE_BRANCH set correctly
   // branch jobs have BRANCH_NAME set correctly
@@ -162,9 +170,9 @@ def buildImage(Map config = [:]) {
     buildArgs.push("--pull")
   }
 
-  if (config.base_image_name) {
+  if (config.base_suffix) {
     buildArgs.push("--build-arg")
-    buildArgs.push(["BASE_IMAGE", "${REPO_BASE}/${config.base_name}:${config.variant_version}-1-${config.version}"].join("="))
+    buildArgs.push(["BASE_IMAGE", "${REPO_BASE}/${config.name}:${config.base_name}-1-${config.version}-${config.base_suffix}"].join("="))
   }
 
   if (config.dockerfile) {
