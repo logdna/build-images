@@ -11,6 +11,9 @@ pipeline {
     issueCommentTrigger('.*test this please.*')
     cron(env.BRANCH_NAME ==~ /\d\.\d/ ? 'H H 1,15 * *' : '')
   }
+  environment {
+    DOCKER_BUILDKIT='1'
+  }
   stages {
     stage('Validate PR Source') {
       when {
@@ -57,17 +60,17 @@ pipeline {
                         echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" >> ${PWD}/.aws_creds
                         echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" >> ${PWD}/.aws_creds
                     """
+                    buildImage(
+                        dockerfile: "Dockerfile.base"
+                        , name: "rust"
+                        , variant_base: "debian"
+                        , variant_version: "${VARIANT_VERSION}"
+                        , version: "${RUSTC_VERSION}"
+                        , image_suffix: "-base"
+                        , pull: true
+                        , clean: true
+                    )
                 }
-                buildImage(
-                    dockerfile: "Dockerfile.base"
-                    , name: "rust"
-                    , variant_base: "debian"
-                    , variant_version: "${VARIANT_VERSION}"
-                    , version: "${RUSTC_VERSION}"
-                    , image_suffix: "-base"
-                    , pull: true
-                    , clean: true
-                )
             }
             post {
                 always {
@@ -115,17 +118,17 @@ pipeline {
                         echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" >> ${PWD}/.aws_creds
                         echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" >> ${PWD}/.aws_creds
                     """
+                    buildImage(
+                        dockerfile: "Dockerfile"
+                        , base_suffix: "-base",
+                        , name: "rust"
+                        , variant_base: "debian"
+                        , variant_version: "${VARIANT_VERSION}"
+                        , version: "${RUSTC_VERSION}"
+                        , pull: true
+                        , clean: true
+                    )
                 }
-                buildImage(
-                    dockerfile: "Dockerfile"
-                    , base_suffix: "-base",
-                    , name: "rust"
-                    , variant_base: "debian"
-                    , variant_version: "${VARIANT_VERSION}"
-                    , version: "${RUSTC_VERSION}"
-                    , pull: true
-                    , clean: true
-                )
             }
             post {
                 always {
@@ -181,7 +184,7 @@ def buildImage(Map config = [:]) {
   }
 
   buildArgs.push("--secret")
-  buildArgs.push("id=aws,src=${env.WORKSPACE}/.aws/credentials")
+  buildArgs.push("id=aws,src=${env.WORKSPACE}/.aws_creds")
 
   buildArgs.push("--build-arg")
   buildArgs.push(["VERSION", config.version].join("="))
