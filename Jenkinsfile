@@ -13,6 +13,8 @@ pipeline {
   }
   environment {
     DOCKER_BUILDKIT='1'
+    SCCACHE_BUCKET='logdna-sccache-us-west-2'
+    SCCACHE_REGION='us-west-2'
   }
   stages {
     stage('Validate PR Source') {
@@ -66,7 +68,7 @@ pipeline {
                         , variant_base: "debian"
                         , variant_version: "${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
-                        , image_suffix: "-base"
+                        , image_suffix: "base"
                         , pull: true
                         , clean: true
                     )
@@ -74,7 +76,7 @@ pipeline {
             }
             post {
                 always {
-                    sh "rm ${PWD}/.aws_creds"
+                    sh "rm ${WORKSPACE}/.aws_creds"
                 }
             }
           } // End Build stage
@@ -120,7 +122,7 @@ pipeline {
                     """
                     buildImage(
                         dockerfile: "Dockerfile"
-                        , base_suffix: "-base",
+                        , base_suffix: "base",
                         , name: "rust"
                         , variant_base: "debian"
                         , variant_version: "${VARIANT_VERSION}"
@@ -132,7 +134,7 @@ pipeline {
             }
             post {
                 always {
-                    sh "rm ${PWD}/.aws_creds"
+                    sh "rm ${WORKSPACE}/.aws_creds"
                 }
             }
           } // End Build stage
@@ -152,8 +154,8 @@ def buildImage(Map config = [:]) {
   def directory = "${config.name}/${config.variant_base}"
   def name
 
-  if (config.base_suffix) {
-    name = "${REPO_BASE}/${config.name}:${config.variant_version}-1-${config.version}-${config.base_suffix}"
+  if (config.image_suffix) {
+    name = "${REPO_BASE}/${config.name}:${config.variant_version}-1-${config.version}-${config.image_suffix}"
   } else {
     name = "${REPO_BASE}/${config.name}:${config.variant_version}-1-${config.version}"
   }
@@ -169,13 +171,25 @@ def buildImage(Map config = [:]) {
   , "plain"
   ]
 
+  if (env.SCCACHE_BUCKET != null && env.SCCACHE_REGION != null) {
+    buildArgs.push("--build-arg")
+    buildArgs.push(["SCCACHE_BUCKET", env.SCCACHE_BUCKET].join("="))
+    buildArgs.push("--build-arg")
+    buildArgs.push(["SCCACHE_REGION", env.SCCACHE_REGION].join("="))
+  } else {
+    buildArgs.push("--build-arg")
+    buildArgs.push("RUSTC_WRAPPER=")
+    buildArgs.push("--build-arg")
+    buildArgs.push("CC_WRAPPER=")
+  }
+
   if (config.pull) {
     buildArgs.push("--pull")
   }
 
   if (config.base_suffix) {
     buildArgs.push("--build-arg")
-    buildArgs.push(["BASE_IMAGE", "${REPO_BASE}/${config.name}:${config.base_name}-1-${config.version}-${config.base_suffix}"].join("="))
+    buildArgs.push(["BASE_IMAGE", "${REPO_BASE}/${config.name}:${config.variant_version}-1-${config.version}-${config.base_suffix}"].join("="))
   }
 
   if (config.dockerfile) {
