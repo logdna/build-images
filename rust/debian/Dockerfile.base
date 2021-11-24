@@ -1,0 +1,69 @@
+ARG VARIANT_VERSION=buster
+FROM buildpack-deps:${VARIANT_VERSION}-curl
+
+# Needs to be in this scope too
+ARG VARIANT_VERSION=buster
+
+ARG SCCACHE_BUCKET
+ENV SCCACHE_BUCKET=${SCCACHE_BUCKET}
+
+ARG SCCACHE_REGION
+ENV SCCACHE_REGION=${SCCACHE_REGION}
+
+ENV CARGO_HOME="/opt/rust/cargo"
+ENV RUSTUP_HOME="/opt/rust/rustup"
+ENV PATH="${CARGO_HOME}/bin:${PATH}"
+
+COPY llvm-snapshot.gpg.key /llvm-snapshot.gpg.key
+
+RUN DEPS='build-essential binutils ca-certificates curl file gcc g++ libtool m4 libc6-dev make xz-utils locales libexpat1-dev gettext libz-dev libssl-dev autoconf pkg-config bzip2 libsystemd-dev systemd lsof procps git cmake automake hunspell-en-gb hunspell-tools linux-perf clang-12 llvm-12 lldb texinfo' \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends software-properties-common \
+  && apt-key add /llvm-snapshot.gpg.key \
+  && add-apt-repository "deb http://apt.llvm.org/${VARIANT_VERSION}/ llvm-toolchain-${VARIANT_VERSION}-12 main" \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends $DEPS \
+  && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
+  && locale-gen en_US.UTF-8 \
+  && /usr/sbin/update-locale LANG=en_US.UTF-8 \
+  && apt-get remove --purge autoconf libz-dev libexpat1-dev -y \
+  && apt-get autoremove -y \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc
+
+RUN unmunch /usr/share/hunspell/en_GB.dic /usr/share/hunspell/en_GB.aff | grep -v "'s" > /dict.txt
+
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US
+ENV TERM xterm
+
+ARG VERSION="stable"
+
+# Install rust
+ENV CARGO_HOME=/opt/rust/cargo
+RUN curl https://sh.rustup.rs -sSf | \
+    sh -s -- -y --default-toolchain $VERSION --component clippy rustfmt --profile minimal --no-modify-path && \
+    chmod -R a+rw $RUSTUP_HOME $CARGO_HOME
+
+# Install sccache
+RUN curl https://api.github.com/repos/mozilla/sccache/releases/latest \
+    | grep "browser_download_url" \
+    | grep -E "sccache-v.*x86_64-unknown-linux-musl.tar.gz\"$" \
+    | awk '{$1=$1;print}' \
+    | cut -f2 -d" " \
+    | xargs curl -LO \
+    && mkdir -p /tmp/sccache \
+    && tar -C /tmp/sccache --strip-components=1 -xf ../sccache-*-x86_64-unknown-linux-musl.tar.gz \
+    && mv /tmp/sccache/sccache /usr/local/bin/sccache \
+    && chmod +x /usr/local/bin/sccache
+
+ENV RUSTC_WRAPPER="/usr/local/bin/sccache"
+ENV CC_WRAPPER="/usr/local/bin/sccache"
+
+RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
+    if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
+    cargo install cargo-audit flamegraph && \
+    sccache --show-stats
+
+ENV SCCACHE_BUCKET=
+ENV SCCACHE_REGION=

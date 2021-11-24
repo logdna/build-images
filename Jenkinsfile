@@ -11,6 +11,11 @@ pipeline {
     issueCommentTrigger('.*test this please.*')
     cron(env.BRANCH_NAME ==~ /\d\.\d/ ? 'H H 1,15 * *' : '')
   }
+  environment {
+    DOCKER_BUILDKIT='1'
+    SCCACHE_BUCKET='logdna-sccache-us-west-2'
+    SCCACHE_REGION='us-west-2'
+  }
   stages {
     stage('Validate PR Source') {
       when {
@@ -24,11 +29,11 @@ pipeline {
       }
     }
 
-    stage('Build Rust Images') {
+    stage('Build Rust Variant Images') {
       matrix {
         axes {
           axis {
-            name 'RUST_VERSION'
+            name 'RUSTC_VERSION'
             values 'stable', 'beta', '1.54.0'
           }
           axis {
@@ -46,45 +51,195 @@ pipeline {
         stages {
           stage('Build') {
             steps {
-              buildImage(
-                name: "rust"
-              , variant_base: "debian"
-              , variant_version: "${VARIANT_VERSION}"
-              , version: "${RUST_VERSION}"
-              , pull: true
-              , clean: true
-              )
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws',
+                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                ]]){
+                    sh """
+                        echo "[default]" > ${WORKSPACE}/.aws_creds
+                        echo 'AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID' >> ${WORKSPACE}/.aws_creds
+                        echo 'AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY' >> ${WORKSPACE}/.aws_creds
+                    """
+                    script {
+                        def image_name = generateImageName(
+                          name: "rust"
+                          , variant_base: "debian"
+                          , variant_version: "${VARIANT_VERSION}"
+                          , version: "${RUSTC_VERSION}"
+                          , image_suffix: "base"
+                        )
+
+                        buildImage(
+                          name: "rust"
+                          , variant_base: "debian"
+                          , variant_version: "${VARIANT_VERSION}"
+                          , version: "${RUSTC_VERSION}"
+                          , dockerfile: "Dockerfile.base"
+                          , image_name: image_name
+                          , pull: true
+                          , push: true
+                          , clean: false
+                        )
+                    }
+                }
+            }
+            post {
+                always {
+                    sh "rm ${WORKSPACE}/.aws_creds"
+                }
             }
           } // End Build stage
         } // End Build Rust Images stages
       } // End matrix
     } // End Build Rust Images stage
+    stage('Build Rust Arch specific Images') {
+      matrix {
+        axes {
+          axis {
+            name 'RUSTC_VERSION'
+            values 'stable', 'beta', '1.54.0'
+          }
+          axis {
+            name 'VARIANT_VERSION'
+            values 'buster', 'bullseye'
+          }
+          axis {
+            name 'ARCH'
+            values 'x86_64', 'aarch64'
+          }
+        }
+
+        agent {
+          node {
+            label 'ec2-fleet'
+            customWorkspace "docker-images-${BUILD_NUMBER}"
+          }
+        }
+        stages {
+          stage('Build') {
+            steps {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws',
+                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                ]]){
+                    sh """
+                        echo "[default]" > ${WORKSPACE}/.aws_creds
+                        echo 'AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID' >> ${WORKSPACE}/.aws_creds
+                        echo 'AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY' >> ${WORKSPACE}/.aws_creds
+                    """
+                    script {
+                      def image_name = generateImageName(
+                        name: "rust"
+                        , variant_base: "debian"
+                        , variant_version: "${VARIANT_VERSION}"
+                        , version: "${RUSTC_VERSION}"
+                        , image_suffix: "${ARCH}"
+                      )
+                      def base_name = generateImageName(
+                        name: "rust"
+                        , variant_base: "debian"
+                        , variant_version: "${VARIANT_VERSION}"
+                        , version: "${RUSTC_VERSION}"
+                        , image_suffix: "base"
+                      )
+                      println "base name: ${base_name}"
+
+                      buildImage(
+                        name: "rust"
+                        , variant_base: "debian"
+                        , variant_version: "${VARIANT_VERSION}"
+                        , version: "${RUSTC_VERSION}"
+                        , dockerfile: "Dockerfile"
+                        , image_name: image_name
+                        , base_name: base_name
+                        , pull: true
+                        , clean: true
+                      )
+
+                      try {
+                        gcr.clean(base_name)
+                      } catch(Exception ex) {
+                        println("image already cleaned up");
+                      }
+                    }
+                }
+            }
+            post {
+                always {
+                    sh "rm ${WORKSPACE}/.aws_creds"
+                }
+            }
+          } // End Build stage
+        } // End Build Rust Images stages
+      }
+    }
   }
 }
 
-def buildImage(Map config = [:]) {
+def generateImageName(Map config = [:]){
   String REPO_BASE = "us.gcr.io/logdna-k8s"
   assert config.name : "Missing config.name"
   assert config.variant_base : "Missing config.variant_base"
   assert config.variant_version : "Missing config.variant_version"
   assert config.version : "Missing config.version"
 
-  def directory = "${config.name}/${config.variant_base}"
-  def name = "${REPO_BASE}/${config.name}:${config.variant_version}-1-${config.version}"
+  if (config.image_suffix) {
+    return "${REPO_BASE}/${config.name}:${config.variant_version}-1-${config.version}-${config.image_suffix}"
+  } else {
+    return "${REPO_BASE}/${config.name}:${config.variant_version}-1-${config.version}"
+  }
+}
 
-  // PR jobs have CHANGE_BRANCH set correctly
+def buildImage(Map config = [:]) {
+  assert config.name : "Missing config.name"
+  assert config.variant_base : "Missing config.variant_base"
+  assert config.variant_version : "Missing config.variant_version"
+  assert config.version : "Missing config.version"
+
+    // PR jobs have CHANGE_BRANCH set correctly
   // branch jobs have BRANCH_NAME set correctly
   // Neither are consistent, so we have to do this :[]
-  def shouldPush = ((env.CHANGE_BRANCH || env.BRANCH_NAME) == "main")
+  def shouldPush =  ((env.CHANGE_BRANCH || env.BRANCH_NAME) == "main" || config.push)
+
+  def directory = "${config.name}/${config.variant_base}"
 
   List<String> buildArgs = [
     "--progress"
   , "plain"
   ]
 
+  if (env.SCCACHE_BUCKET != null && env.SCCACHE_REGION != null) {
+    buildArgs.push("--build-arg")
+    buildArgs.push(["SCCACHE_BUCKET", env.SCCACHE_BUCKET].join("="))
+    buildArgs.push("--build-arg")
+    buildArgs.push(["SCCACHE_REGION", env.SCCACHE_REGION].join("="))
+  } else {
+    buildArgs.push("--build-arg")
+    buildArgs.push("RUSTC_WRAPPER=")
+    buildArgs.push("--build-arg")
+    buildArgs.push("CC_WRAPPER=")
+  }
+
   if (config.pull) {
     buildArgs.push("--pull")
   }
+
+  if (config.base_name) {
+    buildArgs.push("--build-arg")
+    buildArgs.push(["BASE_IMAGE", config.base_name].join("="))
+  }
+
+  if (config.dockerfile) {
+    buildArgs.push("-f")
+    buildArgs.push([directory, config.dockerfile].join("/"))
+  }
+
+  buildArgs.push("--secret")
+  buildArgs.push("id=aws,src=${env.WORKSPACE}/.aws_creds")
 
   buildArgs.push("--build-arg")
   buildArgs.push(["VERSION", config.version].join("="))
@@ -94,7 +249,7 @@ def buildImage(Map config = [:]) {
 
   buildArgs.push(directory)
 
-  def image = docker.build(name, buildArgs.join(' '))
+  def image = docker.build(config.image_name, buildArgs.join(' '))
 
   if (shouldPush) {
     image.push()
