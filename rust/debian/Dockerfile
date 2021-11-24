@@ -1,10 +1,14 @@
-FROM buildpack-deps:buster-curl
+ARG VARIANT_VERSION=buster
+FROM buildpack-deps:${VARIANT_VERSION}-curl
+
+# Needs to be in this scope too
+ARG VARIANT_VERSION=buster
 
 ENV CARGO_HOME="/opt/rust/cargo"
 ENV RUSTUP_HOME="/opt/rust/rustup"
 ENV PATH="${CARGO_HOME}/bin:${PATH}"
 
-RUN DEPS='build-essential binutils ca-certificates curl file gcc g++ libtool m4 libc6-dev make xz-utils locales libexpat1-dev gettext libz-dev libssl-dev autoconf pkg-config bzip2 libsystemd-dev systemd lsof procps git cmake software-properties-common automake' \
+RUN DEPS='build-essential binutils ca-certificates curl file gcc g++ libtool m4 libc6-dev make xz-utils locales libexpat1-dev gettext libz-dev libssl-dev autoconf pkg-config bzip2 libsystemd-dev systemd lsof procps git cmake software-properties-common automake hunspell-en-gb hunspell-tools' \
   && apt-get update \
   && apt-get install -y --no-install-recommends $DEPS \
   && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
@@ -46,11 +50,11 @@ ARG VERSION="stable"
 
 # Install an up to date llvm
 COPY llvm-snapshot.gpg.key /llvm-snapshot.gpg.key
-RUN apt update && apt install -y&& \
+RUN apt update && apt install -y && \
     apt-key add /llvm-snapshot.gpg.key && \
-    add-apt-repository "deb http://apt.llvm.org/buster/ llvm-toolchain-buster-12 main" && \
+    add-apt-repository "deb http://apt.llvm.org/${VARIANT_VERSION}/ llvm-toolchain-${VARIANT_VERSION}-12 main" && \
     apt update -y && \
-    apt install -y clang-12 llvm-12
+    apt install -y clang-12 llvm-12 lldb
 
 # Install rust
 
@@ -76,7 +80,7 @@ ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=x86_64-linux-musl-gcc \
     CXX_aarch64_unknown_linux_musl=aarch64-linux-musl-g++
 
 # Install static openssl
-ARG OPENSSL_VERSION=1.1.1i
+ARG OPENSSL_VERSION=1.1.1l
 
 RUN echo "Building OpenSSL" && \
     ls /usr/include/linux && \
@@ -139,7 +143,7 @@ RUN echo "Building rocksdb" && \
     cd /tmp && \
     git clone https://github.com/facebook/rocksdb.git && \
     cd rocksdb && \
-    git checkout v6.19.3 && \
+    git checkout v6.22.1 && \
     PORTABLE=1 CCFLAGS=-fPIC CXXFLAGS=-fPIC \
     CC=x86_64-linux-musl-gcc CXX=x86_64-linux-musl-g++ \
     make static_lib && \
@@ -165,5 +169,10 @@ RUN echo "Building rocksdb" && \
     cp -r include /usr/local/rocksdb/aarch64-linux-musl/ && \
     cp -r include/* /usr/include/aarch64-linux-musl/ && \
     rm -R /tmp/rocksdb/
+
+RUN unmunch /usr/share/hunspell/en_GB.dic /usr/share/hunspell/en_GB.aff | grep -v "'s" > /dict.txt
+
+RUN apt update -y && apt install -y linux-perf
+RUN cargo install flamegraph
 
 CMD ["bash"]

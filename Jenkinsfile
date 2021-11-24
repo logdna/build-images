@@ -29,7 +29,11 @@ pipeline {
         axes {
           axis {
             name 'RUST_VERSION'
-            values 'stable', 'beta', '1.53.0'
+            values 'stable', 'beta', '1.54.0'
+          }
+          axis {
+            name 'VARIANT_VERSION'
+            values 'buster', 'bullseye'
           }
         }
 
@@ -44,7 +48,8 @@ pipeline {
             steps {
               buildImage(
                 name: "rust"
-              , variant: "buster"
+              , variant_base: "debian"
+              , variant_version: "${VARIANT_VERSION}"
               , version: "${RUST_VERSION}"
               , pull: true
               , clean: true
@@ -60,11 +65,12 @@ pipeline {
 def buildImage(Map config = [:]) {
   String REPO_BASE = "us.gcr.io/logdna-k8s"
   assert config.name : "Missing config.name"
-  assert config.variant : "Missing config.variant"
+  assert config.variant_base : "Missing config.variant_base"
+  assert config.variant_version : "Missing config.variant_version"
   assert config.version : "Missing config.version"
 
-  def directory = "${config.name}/${config.variant}"
-  def name = "${REPO_BASE}/${config.name}:${config.variant}-1-${config.version}"
+  def directory = "${config.name}/${config.variant_base}"
+  def name = "${REPO_BASE}/${config.name}:${config.variant_version}-1-${config.version}"
 
   // PR jobs have CHANGE_BRANCH set correctly
   // branch jobs have BRANCH_NAME set correctly
@@ -82,6 +88,9 @@ def buildImage(Map config = [:]) {
 
   buildArgs.push("--build-arg")
   buildArgs.push(["VERSION", config.version].join("="))
+
+  buildArgs.push("--build-arg")
+  buildArgs.push(["VARIANT_VERSION", config.variant_version].join("="))
 
   buildArgs.push(directory)
 
