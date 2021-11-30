@@ -152,6 +152,7 @@ pipeline {
                         , variant_base: "debian"
                         , variant_version: "${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
+                        , arch: "${ARCH}"
                         , dockerfile: "Dockerfile"
                         , image_name: image_name
                         , base_name: base_name
@@ -175,7 +176,7 @@ pipeline {
                                 , variant_base: "debian"
                                 , variant_version: "${VARIANT_VERSION}"
                                 , version: "${RUSTC_VERSION}"
-                                , image_suffix: "${ARCH}"
+                                , arch: "${ARCH}"
                                 , dockerfile: "Dockerfile"
                                 , image_name: docker_name
                                 , base_name: base_name
@@ -264,6 +265,11 @@ def buildImage(Map config = [:]) {
   if (config.dockerfile) {
     buildArgs.push("-f")
     buildArgs.push([directory, config.dockerfile].join("/"))
+  }
+
+  if (config.arch) {
+    buildArgs.push("--build-arg")
+    buildArgs.push(["ARCH", config.arch].join("="))
   }
 
   buildArgs.push("--secret")
