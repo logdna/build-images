@@ -146,7 +146,8 @@ pipeline {
                         , version: "${RUSTC_VERSION}"
                         , image_suffix: "base"
                       )
-                      def image = buildImage(
+                      // GCR image
+                      buildImage(
                         name: "rust"
                         , variant_base: "debian"
                         , variant_version: "${VARIANT_VERSION}"
@@ -165,8 +166,19 @@ pipeline {
                         , version: "${RUSTC_VERSION}"
                         , image_suffix: "${ARCH}"
                       )
-                      image.tag(docker_name)
-                      image.push()
+                      // Dockerhub image
+                      buildImage(
+                        repo_base: "docker.io/logdna",
+                        , name: "build-images"
+                        , variant_base: "rust"
+                        , variant_version: "${VARIANT_VERSION}"
+                        , version: "${RUSTC_VERSION}"
+                        , image_suffix: "${ARCH}"
+                        , dockerfile: "Dockerfile"
+                        , image_name: docker_name
+                        , base_name: base_name
+                        , clean: true
+                      )
                       try {
                         gcr.clean(base_name)
                       } catch(Exception ex) {
