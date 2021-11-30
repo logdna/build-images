@@ -169,7 +169,7 @@ pipeline {
                       // Dockerhub image
                       buildImage(
                         repo_base: "docker.io/logdna",
-                        , name: "build-images"
+                        , name: "rust"
                         , variant_base: "debian"
                         , variant_version: "${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
