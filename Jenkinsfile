@@ -162,7 +162,7 @@ pipeline {
                         repo_base: "docker.io/logdna",
                         , name: "build-images"
                         , variant_base: "rust"
-                        , variant_version: "${VARIANT_VERSION}"
+                        , variant_version: "rust-${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
                         , image_suffix: "${ARCH}"
                       )
