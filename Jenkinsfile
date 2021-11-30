@@ -166,18 +166,22 @@ pipeline {
                         , image_suffix: "${ARCH}"
                       )
                       // Dockerhub image
-                      buildImage(
-                        repo_base: "docker.io/logdna",
-                        , name: "rust"
-                        , variant_base: "debian"
-                        , variant_version: "${VARIANT_VERSION}"
-                        , version: "${RUSTC_VERSION}"
-                        , image_suffix: "${ARCH}"
-                        , dockerfile: "Dockerfile"
-                        , image_name: docker_name
-                        , base_name: base_name
-                        , clean: false
-                      )
+                      docker.withRegistry(
+                                'https://index.docker.io/v1/',
+                                'dockerhub-username-password') {
+                            buildImage(
+                                repo_base: "docker.io/logdna",
+                                , name: "rust"
+                                , variant_base: "debian"
+                                , variant_version: "${VARIANT_VERSION}"
+                                , version: "${RUSTC_VERSION}"
+                                , image_suffix: "${ARCH}"
+                                , dockerfile: "Dockerfile"
+                                , image_name: docker_name
+                                , base_name: base_name
+                                , clean: false
+                            )
+                      }
                       try {
                         gcr.clean(base_name)
                         // Hack to work around docker image bug
