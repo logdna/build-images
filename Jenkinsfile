@@ -170,7 +170,7 @@ pipeline {
                       buildImage(
                         repo_base: "docker.io/logdna",
                         , name: "build-images"
-                        , variant_base: "rust"
+                        , variant_base: "debian"
                         , variant_version: "${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
                         , image_suffix: "${ARCH}"
