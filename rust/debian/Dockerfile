@@ -9,7 +9,8 @@ ENV SCCACHE_REGION=${SCCACHE_REGION}
 
 ARG ARCH=x86_64
 
-RUN rustup target add ${ARCH}-unknown-linux-musl
+RUN rustup target add ${ARCH}-unknown-linux-musl && \
+    chmod -R a+rw $RUSTUP_HOME $CARGO_HOME
 
 # Install a musl cross compiler for ${ARCH} using musl-cross-make
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
