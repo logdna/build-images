@@ -176,10 +176,12 @@ pipeline {
                         , dockerfile: "Dockerfile"
                         , image_name: docker_name
                         , base_name: base_name
-                        , clean: true
+                        , clean: false
                       )
                       try {
                         gcr.clean(base_name)
+                        // Hack to work around docker image bug
+                        gcr.clean(image_name.replaceFirst("docker.io/", ""))
                       } catch(Exception ex) {
                         println("image already cleaned up");
                       }
