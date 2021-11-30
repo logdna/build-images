@@ -146,8 +146,7 @@ pipeline {
                         , version: "${RUSTC_VERSION}"
                         , image_suffix: "base"
                       )
-                      println "base name: ${base_name}"
-
+                      // GCR image
                       buildImage(
                         name: "rust"
                         , variant_base: "debian"
@@ -157,11 +156,32 @@ pipeline {
                         , image_name: image_name
                         , base_name: base_name
                         , pull: true
-                        , clean: true
                       )
-
+                      def docker_name = generateImageName(
+                        repo_base: "docker.io/logdna",
+                        , name: "build-images"
+                        , variant_base: "rust"
+                        , variant_version: "rust-${VARIANT_VERSION}"
+                        , version: "${RUSTC_VERSION}"
+                        , image_suffix: "${ARCH}"
+                      )
+                      // Dockerhub image
+                      buildImage(
+                        repo_base: "docker.io/logdna",
+                        , name: "rust"
+                        , variant_base: "debian"
+                        , variant_version: "${VARIANT_VERSION}"
+                        , version: "${RUSTC_VERSION}"
+                        , image_suffix: "${ARCH}"
+                        , dockerfile: "Dockerfile"
+                        , image_name: docker_name
+                        , base_name: base_name
+                        , clean: false
+                      )
                       try {
                         gcr.clean(base_name)
+                        // Hack to work around docker image bug
+                        gcr.clean(image_name.replaceFirst("docker.io/", ""))
                       } catch(Exception ex) {
                         println("image already cleaned up");
                       }
@@ -181,16 +201,20 @@ pipeline {
 }
 
 def generateImageName(Map config = [:]){
-  String REPO_BASE = "us.gcr.io/logdna-k8s"
+  String repo_base = "us.gcr.io/logdna-k8s"
   assert config.name : "Missing config.name"
   assert config.variant_base : "Missing config.variant_base"
   assert config.variant_version : "Missing config.variant_version"
   assert config.version : "Missing config.version"
 
+  if (config.repo_base) {
+    repo_base = config.repo_base
+  }
+
   if (config.image_suffix) {
-    return "${REPO_BASE}/${config.name}:${config.variant_version}-1-${config.version}-${config.image_suffix}"
+    return "${repo_base}/${config.name}:${config.variant_version}-1-${config.version}-${config.image_suffix}"
   } else {
-    return "${REPO_BASE}/${config.name}:${config.variant_version}-1-${config.version}"
+    return "${repo_base}/${config.name}:${config.variant_version}-1-${config.version}"
   }
 }
 
@@ -258,4 +282,6 @@ def buildImage(Map config = [:]) {
   if (config.clean) {
     gcr.clean(image.id)
   }
+
+  return image
 }
