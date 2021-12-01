@@ -12,9 +12,6 @@ ARG ARCH=x86_64
 RUN rustup target add ${ARCH}-unknown-linux-musl && \
     chmod -R a+rw $RUSTUP_HOME $CARGO_HOME
 
-RUN echo "[target.${ARCH}_unknown_linux_musl]" >> $CARGO_HOME/config.toml && \
-    echo "linker = \"${ARCH}-linux-musl-gcc\"" >> $CARGO_HOME/config.toml
-
 ## Install a musl cross compiler for ${ARCH} using musl-cross-make
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
@@ -33,6 +30,9 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
         TARGET=${ARCH}-linux-musl && \
     sccache --show-stats && \
     rm -rf /tmp/musl-cross
+
+RUN echo "[target.${ARCH}-unknown-linux-musl]" >> $CARGO_HOME/config.toml && \
+    echo "linker = \"${ARCH}-linux-musl-gcc\"" >> $CARGO_HOME/config.toml
 
 ## Set up cargo env vars for cross compiling
 ENV CC_${ARCH}_unknown_linux_musl=${ARCH}-linux-musl-gcc \

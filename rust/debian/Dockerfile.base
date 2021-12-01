@@ -65,7 +65,8 @@ ENV CC_WRAPPER="/usr/local/bin/sccache"
 
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
-    cargo install cargo-audit flamegraph cargo-cache && \
+    cargo install cargo-audit flamegraph && \
+    cargo install --version 0.6.3 cargo-cache && \
     cargo cache -a && \
     sccache --show-stats
 
