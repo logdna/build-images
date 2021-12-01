@@ -12,7 +12,10 @@ ARG ARCH=x86_64
 RUN rustup target add ${ARCH}-unknown-linux-musl && \
     chmod -R a+rw $RUSTUP_HOME $CARGO_HOME
 
-# Install a musl cross compiler for ${ARCH} using musl-cross-make
+RUN echo "[target.${ARCH}_unknown_linux_musl]" >> $CARGO_HOME/config.toml && \
+    echo "linker = \"${ARCH}-linux-musl-gcc\"" >> $CARGO_HOME/config.toml
+
+## Install a musl cross compiler for ${ARCH} using musl-cross-make
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
     mkdir /tmp/musl-cross && cd /tmp/musl-cross && \
@@ -31,9 +34,8 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     sccache --show-stats && \
     rm -rf /tmp/musl-cross
 
-# Set up cargo env vars for cross compiling
-ENV CARGO_TARGET_${ARCH}_UNKNOWN_LINUX_MUSL_LINKER=${ARCH}-linux-musl-gcc \
-    CC_${ARCH}_unknown_linux_musl=${ARCH}-linux-musl-gcc \
+## Set up cargo env vars for cross compiling
+ENV CC_${ARCH}_unknown_linux_musl=${ARCH}-linux-musl-gcc \
     CXX_${ARCH}_unknown_linux_musl=${ARCH}-linux-musl-g++
 
 ## Install static Zlib
@@ -45,7 +47,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     curl -fLO "http://zlib.net/zlib-$ZLIB_VERSION.tar.gz" && \
     tar xzf "zlib-$ZLIB_VERSION.tar.gz" && cd "zlib-$ZLIB_VERSION" && \
     CC="$CC_WRAPPER ${ARCH}-linux-musl-gcc" ./configure --static --prefix=/usr/local/musl && \
-    make && make install && \
+    make -j$(nproc) && make install && \
     sccache --show-stats && \
     rm -r /tmp/*
 
@@ -54,7 +56,7 @@ ENV PKG_CONFIG_ALLOW_CROSS=true \
     LIBZ_SYS_STATIC=1 \
     PLATFORM_LDFLAGS="-static-libstdc++ -static-libgcc"
 
-# Install static -fPIC Rocksdb
+## Install static -fPIC Rocksdb
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
     echo "Building rocksdb" && \
@@ -64,7 +66,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     git checkout v6.22.1 && \
     PORTABLE=1 CCFLAGS=-fPIC CXXFLAGS=-fPIC \
     CC="$CC_WRAPPER ${ARCH}-linux-musl-gcc" CXX="$CC_WRAPPER ${ARCH}-linux-musl-g++" \
-    make static_lib && \
+    make -j$(nproc) static_lib && \
     mkdir -p /usr/local/rocksdb/${ARCH}-linux-musl/lib && \
     mkdir /usr/local/rocksdb/${ARCH}-linux-musl/include && \
     cp librocksdb.a* /usr/local/rocksdb/${ARCH}-linux-musl/lib && \
