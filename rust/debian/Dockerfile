@@ -1,11 +1,14 @@
-ARG BASE_IMAGE
+ARG ARCH=x86_64
+ARG BASE_IMAGE=logdna/build-images/rust-buster-1-stable-base-${ARCH}
 FROM ${BASE_IMAGE}
 
 ARG SCCACHE_BUCKET
-ENV SCCACHE_BUCKET=${SCCACHE_BUCKET}
-
 ARG SCCACHE_REGION
-ENV SCCACHE_REGION=${SCCACHE_REGION}
+ARG SCCACHE_ENDPOINT
+ARG SCCACHE_RECACHE
+ARG SCCACHE_SERVER_PORT=4226
+ARG AWS_ACCESS_KEY_ID
+ARG AWS_SECRET_ACCESS_KEY
 
 ARG ARCH=x86_64
 
@@ -15,6 +18,7 @@ RUN rustup target add ${ARCH}-unknown-linux-musl && \
 ## Install a musl cross compiler for ${ARCH} using musl-cross-make
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
+    if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
     mkdir /tmp/musl-cross && cd /tmp/musl-cross && \
     curl --retry 3 -sSfL "https://github.com/richfelker/musl-cross-make/archive/v0.9.9.tar.gz" -O &&\
     tar --strip-components=1 -xzf "v0.9.9.tar.gz" && \
@@ -42,6 +46,7 @@ ENV CC_${ARCH}_unknown_linux_musl=${ARCH}-linux-musl-gcc \
 ARG ZLIB_VERSION=1.2.11
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
+    if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
     echo "Building zlib" && \
     cd /tmp && \
     curl -fLO "http://zlib.net/zlib-$ZLIB_VERSION.tar.gz" && \
@@ -59,6 +64,7 @@ ENV PKG_CONFIG_ALLOW_CROSS=true \
 ## Install static -fPIC Rocksdb
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
+    if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
     echo "Building rocksdb" && \
     cd /tmp && \
     git clone https://github.com/facebook/rocksdb.git && \

@@ -5,16 +5,20 @@ FROM buildpack-deps:${VARIANT_VERSION}-curl
 ARG VARIANT_VERSION=buster
 
 ARG SCCACHE_BUCKET
-ENV SCCACHE_BUCKET=${SCCACHE_BUCKET}
-
 ARG SCCACHE_REGION
-ENV SCCACHE_REGION=${SCCACHE_REGION}
+ARG SCCACHE_ENDPOINT
+ARG SCCACHE_SERVER_PORT=4226
+ARG SCCACHE_RECACHE
+ARG AWS_ACCESS_KEY_ID
+ARG AWS_SECRET_ACCESS_KEY
 
 ENV CARGO_HOME="/opt/rust/cargo"
 ENV RUSTUP_HOME="/opt/rust/rustup"
 ENV PATH="${CARGO_HOME}/bin:${PATH}"
-
 COPY llvm-snapshot.gpg.key /llvm-snapshot.gpg.key
+COPY .curlrc /root
+
+RUN env
 
 RUN DEPS='build-essential binutils ca-certificates curl file gcc g++ libtool m4 libc6-dev make xz-utils locales libexpat1-dev gettext libz-dev libssl-dev autoconf pkg-config bzip2 libsystemd-dev systemd lsof procps git cmake automake hunspell-en-gb hunspell-tools linux-perf clang-12 llvm-12 lldb texinfo' \
   && apt-get update \
@@ -47,28 +51,26 @@ RUN curl https://sh.rustup.rs -sSf | \
 
 # Install sccache
 RUN cd /tmp \
+    && ARCH=$(uname -m) \
     && curl https://api.github.com/repos/mozilla/sccache/releases/latest \
     | grep "browser_download_url" \
-    | grep -E "sccache-v.*x86_64-unknown-linux-musl.tar.gz\"$" \
+    | grep -E "sccache-v.*${ARCH}-unknown-linux-musl.tar.gz\"$" \
     | awk '{$1=$1;print}' \
     | cut -f2 -d" " \
     | xargs curl -LO \
     && mkdir -p /tmp/sccache \
-    && tar -C /tmp/sccache --strip-components=1 -xf /tmp/sccache-*-x86_64-unknown-linux-musl.tar.gz \
+    && tar -C /tmp/sccache --strip-components=1 -xf /tmp/sccache-*-${ARCH}-unknown-linux-musl.tar.gz \
     && mv /tmp/sccache/sccache /usr/local/bin/sccache \
     && chmod +x /usr/local/bin/sccache \
     && rm -rf /tmp/*
-
 
 ENV RUSTC_WRAPPER="/usr/local/bin/sccache"
 ENV CC_WRAPPER="/usr/local/bin/sccache"
 
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
+    if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
     cargo install cargo-audit flamegraph && \
     cargo install --version 0.6.3 cargo-cache && \
     cargo cache -a && \
     sccache --show-stats
-
-ENV SCCACHE_BUCKET=
-ENV SCCACHE_REGION=

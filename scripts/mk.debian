@@ -1,0 +1,43 @@
+#!/bin/bash
+set -e
+TOP=$(dirname "$0")/..
+pushd "$TOP"
+export DOCKER_BUILDKIT=1
+#
+#   PLATFORM          ARCH
+#   linux/amd64       x86_64
+#   linux/arm64       aarch64
+#
+PLATFORM=${PLATFORM:-linux/arm64}
+ARCH=${ARCH:-aarch64}
+time (
+# shellcheck disable=SC2086
+docker build --platform "$PLATFORM" \
+             --progress=plain \
+             --build-arg "SCCACHE_BUCKET=${SCCACHE_BUCKET}" \
+             --build-arg "SCCACHE_REGION=${SCCACHE_REGION}" \
+             --build-arg "SCCACHE_ENDPOINT=${SCCACHE_ENDPOINT}" \
+             --build-arg "SCCACHE_RECACHE=${SCCACHE_RECACHE}" \
+             --build-arg "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" \
+             --build-arg "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" \
+             --build-arg "ARCH=${ARCH}" \
+             -t "docker.io/logdna/build-images:rust-buster-1-stable-base-${ARCH}" \
+             -f rust/debian/Dockerfile.base ${PULL_OPTS} rust/debian
+echo
+echo ===================================================
+echo
+docker build --platform "$PLATFORM" \
+             --progress=plain \
+             --build-arg "SCCACHE_BUCKET=${SCCACHE_BUCKET}" \
+             --build-arg "SCCACHE_REGION=${SCCACHE_REGION}" \
+             --build-arg "SCCACHE_ENDPOINT=${SCCACHE_ENDPOINT}" \
+             --build-arg "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" \
+             --build-arg "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" \
+             --build-arg "ARCH=${ARCH}" \
+             --build-arg "BASE_IMAGE=docker.io/logdna/build-images:rust-buster-1-stable-base-${ARCH}" \
+             -t "docker.io/logdna/build-images:rust-buster-1-stable-${ARCH}" \
+             -f rust/debian/Dockerfile rust/debian
+)
+echo
+echo @@@@@@  SUCCESS  @@@@@@
+echo

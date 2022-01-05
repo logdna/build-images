@@ -1,0 +1,7 @@
+#!/bin/bash
+set -e
+TOP=$(dirname "$0")/..
+pushd "$TOP"
+export SCCACHE_RECACHE=1
+export PULL_OPTS="--no-cache --pull"
+exec ./scripts/mk.debian
