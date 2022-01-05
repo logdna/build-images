@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-TOP=$(dirname "$0")/..
+TOP=$(dirname $(readlink "$0"))/..
 pushd "$TOP"
 export DOCKER_BUILDKIT=1
 #
