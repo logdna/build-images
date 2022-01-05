@@ -109,8 +109,33 @@ pipeline {
             name 'ARCH'
             values 'x86_64', 'aarch64'
           }
+          axis {
+            name 'PLATFORM'
+            values 'linux/amd64', 'linux/arm64'
+          }
         }
-
+        excludes {
+            exclude {
+                axis {
+                    name 'ARCH'
+                    values 'x86_64'
+                }
+                axis {
+                    name 'PLATFORM'
+                    values 'linux/arm64'
+                }
+            }
+            exclude {
+                axis {
+                    name 'ARCH'
+                    values 'aarch64'
+                }
+                axis {
+                    name 'PLATFORM'
+                    values 'linux/amd64'
+                }
+            }
+        }
         agent {
           node {
             label 'ec2-fleet'
@@ -153,6 +178,7 @@ pipeline {
                         , variant_version: "${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
                         , arch: "${ARCH}"
+                        , platform: "${PLATFORM}"
                         , dockerfile: "Dockerfile"
                         , image_name: image_name
                         , base_name: base_name
@@ -270,6 +296,11 @@ def buildImage(Map config = [:]) {
   if (config.arch) {
     buildArgs.push("--build-arg")
     buildArgs.push(["ARCH", config.arch].join("="))
+  }
+
+  if (config.platform) {
+    buildArgs.push("--platform")
+    buildArgs.push(config.platform)
   }
 
   buildArgs.push("--secret")
