@@ -40,6 +40,36 @@ pipeline {
             name 'VARIANT_VERSION'
             values 'buster', 'bullseye'
           }
+          axis {
+            name 'ARCH'
+            values 'x86_64', 'aarch64'
+          }
+          axis {
+            name 'PLATFORM'
+            values 'linux/amd64', 'linux/arm64'
+          }
+        }
+        excludes {
+            exclude {
+                axis {
+                    name 'ARCH'
+                    values 'x86_64'
+                }
+                axis {
+                    name 'PLATFORM'
+                    values 'linux/arm64'
+                }
+            }
+            exclude {
+                axis {
+                    name 'ARCH'
+                    values 'aarch64'
+                }
+                axis {
+                    name 'PLATFORM'
+                    values 'linux/amd64'
+                }
+            }
         }
 
         agent {
@@ -68,7 +98,7 @@ pipeline {
                           , variant_base: "debian"
                           , variant_version: "${VARIANT_VERSION}"
                           , version: "${RUSTC_VERSION}"
-                          , image_suffix: "base"
+                          , image_suffix: "base-${ARCH}"
                         )
 
                         buildImage(
@@ -169,7 +199,7 @@ pipeline {
                         , variant_base: "debian"
                         , variant_version: "${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
-                        , image_suffix: "base"
+                        , image_suffix: "base-${ARCH}"
                       )
                       // GCR image
                       buildImage(
