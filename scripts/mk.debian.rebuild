@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-TOP=$(dirname "$0")/..
+TOP=$(dirname -f "$0")/..
 pushd "$TOP"
 export SCCACHE_RECACHE=1
 export PULL_OPTS="--no-cache --pull"
