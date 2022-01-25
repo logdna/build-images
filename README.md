@@ -11,4 +11,4 @@
 
 ### Example
 Build **Bullseye** image for x86 64bit:
-> PLATFORM=linux/amd64  ARCH=x86_84  VARIANT_VERSION=bullseye  ./scripts/mk.debian
+> PLATFORM=linux/amd64  ARCH=x86_64  VARIANT_VERSION=bullseye  ./scripts/mk.debian
