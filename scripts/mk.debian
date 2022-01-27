@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
-TOP=$(dirname $(readlink -f "$0"))/..
+TOP=$(dirname "$(readlink -f \"$0\")")/..
 pushd "$TOP"
 export DOCKER_BUILDKIT=1
 #
@@ -8,9 +8,18 @@ export DOCKER_BUILDKIT=1
 #
 #   linux/amd64       x86_64
 #   linux/arm64       aarch64
-#
-PLATFORM=${PLATFORM:-linux/arm64}
-ARCH=${ARCH:-aarch64}
+declare -A platforms=( ["x86_64"]="linux/amd64" ["aarch64"]="linux/arm64")
+
+# Default to the host ARCH
+HOST_ARCH=$(uname -m)
+# special case handling for M1s
+if [[ $HOST_ARCH == 'arm64' ]]; then
+    ARCH=${ARCH:-'aarch64'}
+else
+    ARCH=${ARCH:-$HOST_ARCH}
+fi
+
+PLATFORM=${PLATFORM:-${platforms[$ARCH]}}
 VARIANT_VERSION=${VARIANT_VERSION:-buster}
 time (
 echo
