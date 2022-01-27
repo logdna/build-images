@@ -20,7 +20,7 @@ COPY .curlrc /root
 
 RUN env
 
-RUN DEPS='build-essential binutils ca-certificates curl file gcc g++ libtool m4 libc6-dev make xz-utils locales libexpat1-dev gettext libz-dev libssl-dev autoconf pkg-config bzip2 libsystemd-dev systemd lsof procps git cmake automake hunspell-en-gb hunspell-tools linux-perf clang-12 llvm-12 lldb texinfo' \
+RUN DEPS='build-essential binutils ca-certificates curl file gcc g++ libtool m4 libc6-dev make xz-utils locales libexpat1-dev gettext libz-dev libssl-dev autoconf pkg-config bzip2 libsystemd-dev systemd lsof procps git cmake automake hunspell-en-gb hunspell-tools linux-perf clang-12 llvm-12 lldb texinfo procps' \
   && apt-get update \
   && apt-get install -y --no-install-recommends software-properties-common \
   && apt-key add /llvm-snapshot.gpg.key \
@@ -34,6 +34,8 @@ RUN DEPS='build-essential binutils ca-certificates curl file gcc g++ libtool m4 
   && apt-get autoremove -y \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc
+
+RUN free -h && df -h && cat /proc/cpuinfo
 
 RUN unmunch /usr/share/hunspell/en_GB.dic /usr/share/hunspell/en_GB.aff | grep -v "'s" > /dict.txt
 
