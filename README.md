@@ -9,6 +9,6 @@
 > ./scripts/mk.debian.rebuild
   * same as mk.debian plus pull new base and ignore docker build cache
 
-### Example
-Build **Bullseye** image for x86 64bit:
-> PLATFORM=linux/amd64  ARCH=x86_84  VARIANT_VERSION=bullseye  ./scripts/mk.debian
+### Example Command
+Build **Bullseye** image for x86 64bit arch:
+> PLATFORM=linux/amd64  ARCH=x86_64  VARIANT_VERSION=bullseye  ./scripts/mk.debian
