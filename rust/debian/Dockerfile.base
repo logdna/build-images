@@ -18,7 +18,8 @@ ENV PATH="${CARGO_HOME}/bin:${PATH}"
 COPY llvm-snapshot.gpg.key /llvm-snapshot.gpg.key
 COPY .curlrc /root
 
-RUN env
+RUN uname -a && env
+
 
 RUN DEPS='build-essential binutils ca-certificates curl file gcc g++ libtool m4 libc6-dev make xz-utils locales libexpat1-dev gettext libz-dev libssl-dev autoconf pkg-config bzip2 libsystemd-dev systemd lsof procps git cmake automake hunspell-en-gb hunspell-tools linux-perf clang-12 llvm-12 lldb texinfo' \
   && apt-get update \
