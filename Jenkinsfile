@@ -71,7 +71,6 @@ pipeline {
                 }
             }
         }
-
         agent {
           node {
             label 'ec2-fleet'
@@ -79,6 +78,16 @@ pipeline {
           }
         }
         stages {
+          stage('Initilize qemu') {
+            steps {
+              sh """
+                free -h && df -h
+                cat /proc/cpuinfo
+                # initialize qemu
+                docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+              """
+            }
+          }
           stage('Build') {
             steps {
                 withCredentials([[
@@ -106,6 +115,8 @@ pipeline {
                           , variant_base: "debian"
                           , variant_version: "${VARIANT_VERSION}"
                           , version: "${RUSTC_VERSION}"
+                          , arch: "${ARCH}"
+                          , platform: "${PLATFORM}"
                           , dockerfile: "Dockerfile.base"
                           , image_name: image_name
                           , pull: true
@@ -173,6 +184,16 @@ pipeline {
           }
         }
         stages {
+          stage('Initilize qemu') {
+            steps {
+              sh """
+                free -h && df -h
+                cat /proc/cpuinfo
+                # initialize qemu
+                docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+              """
+            }
+          }
           stage('Build') {
             steps {
                 withCredentials([[
@@ -233,6 +254,7 @@ pipeline {
                                 , variant_version: "${VARIANT_VERSION}"
                                 , version: "${RUSTC_VERSION}"
                                 , arch: "${ARCH}"
+                                , platform: "${PLATFORM}"
                                 , dockerfile: "Dockerfile"
                                 , image_name: docker_name
                                 , base_name: base_name
@@ -285,7 +307,7 @@ def buildImage(Map config = [:]) {
   assert config.variant_version : "Missing config.variant_version"
   assert config.version : "Missing config.version"
 
-    // PR jobs have CHANGE_BRANCH set correctly
+  // PR jobs have CHANGE_BRANCH set correctly
   // branch jobs have BRANCH_NAME set correctly
   // Neither are consistent, so we have to do this :[]
   def shouldPush =  ((env.CHANGE_BRANCH || env.BRANCH_NAME) == "main" || config.push)
