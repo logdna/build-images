@@ -237,38 +237,54 @@ pipeline {
       }
     }
     stage('Create Multi-Arch Images') {
-        steps{
-            script {
-                def archs = ['x86_64', 'aarch64']
-
-                for (arch in archs) {
-                    def image_name = generateImageName(
-                        name: "rust"
-                        , variant_base: "debian"
-                        , variant_version: "${VARIANT_VERSION}"
-                        , version: "${RUSTC_VERSION}"
-                        , image_suffix: "${ARCH}"
-                    )
-                    def arm64_image_name = generateImageName(
-                        name: "rust"
-                        , variant_base: "debian"
-                        , variant_version: "${VARIANT_VERSION}"
-                        , version: "${RUSTC_VERSION}"
-                        , image_suffix: "${ARCH}-linux/arm64"
-                    )
-                    def amd64_image_name = generateImageName(
-                        name: "rust"
-                        , variant_base: "debian"
-                        , variant_version: "${VARIANT_VERSION}"
-                        , version: "${RUSTC_VERSION}"
-                        , image_suffix: "${ARCH}-linux/amd64"
-                    )
-                    sh("docker manifest create ${image_name} --amend ${arm64_image_name} --amend ${amd64_image_name}")
-                    sh("docker push ${image_name}")
-                }
-            }
+      matrix {
+        axes {
+          axis {
+            name 'RUSTC_VERSION'
+            values 'stable', 'beta'
+          }
+          axis {
+            name 'VARIANT_VERSION'
+            values 'buster', 'bullseye'
+          }
+          axis {
+            name 'ARCH'
+            values 'x86_64', 'aarch64'
+          }
         }
-     }
+        stages {
+          stage ('Create Multi Arch Manifest') {
+            steps {
+              script {
+                def image_name = generateImageName(
+                   name: "rust"
+                   , variant_base: "debian"
+                   , variant_version: "${VARIANT_VERSION}"
+                   , version: "${RUSTC_VERSION}"
+                   , image_suffix: "${ARCH}"
+                   )
+                def arm64_image_name = generateImageName(
+                   name: "rust"
+                   , variant_base: "debian"
+                   , variant_version: "${VARIANT_VERSION}"
+                   , version: "${RUSTC_VERSION}"
+                   , image_suffix: "${ARCH}-linux/arm64"
+                   )
+                def amd64_image_name = generateImageName(
+                   name: "rust"
+                   , variant_base: "debian"
+                   , variant_version: "${VARIANT_VERSION}"
+                   , version: "${RUSTC_VERSION}"
+                   , image_suffix: "${ARCH}-linux/amd64"
+                   )
+                sh("docker manifest create ${image_name} --amend ${arm64_image_name} --amend ${amd64_image_name}")
+                sh("docker push ${image_name}")
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }
 
