@@ -16,6 +16,9 @@ pipeline {
     SCCACHE_BUCKET='logdna-sccache-us-west-2'
     SCCACHE_REGION='us-west-2'
   }
+  parameters {
+    booleanParam(name: 'PUBLISH_IMAGE', description: 'Publish docker image to Google Container Registry (GCR)', defaultValue: false)
+  }
   stages {
     stage('Validate PR Source') {
       when {
@@ -277,8 +280,10 @@ pipeline {
                    , version: "${RUSTC_VERSION}"
                    , image_suffix: "${ARCH}-linux/amd64"
                    )
-                sh("docker manifest create ${image_name} --amend ${arm64_image_name} --amend ${amd64_image_name}")
-                sh("docker push ${image_name}")
+                if ((env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) || env.PUBLISH_IMAGE) {
+                  sh("docker manifest create ${image_name} --amend ${arm64_image_name} --amend ${amd64_image_name}")
+                  sh("docker push ${image_name}")
+                }
               }
             }
           }
@@ -315,7 +320,7 @@ def buildImage(Map config = [:]) {
   // PR jobs have CHANGE_BRANCH set correctly
   // branch jobs have BRANCH_NAME set correctly
   // Neither are consistent, so we have to do this :[]
-  def shouldPush =  ((env.CHANGE_BRANCH || env.BRANCH_NAME) == "main" || config.push)
+  def shouldPush =  ((env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) || env.PUBLISH_IMAGE || config.push)
 
   def directory = "${config.name}/${config.variant_base}"
 
