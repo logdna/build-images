@@ -46,30 +46,8 @@ pipeline {
           }
           axis {
             name 'PLATFORM'
-            values 'linux/amd64', 'linux/arm64'
+            values 'amd64', 'arm64'
           }
-        }
-        excludes {
-            exclude {
-                axis {
-                    name 'ARCH'
-                    values 'x86_64'
-                }
-                axis {
-                    name 'PLATFORM'
-                    values 'linux/arm64'
-                }
-            }
-            exclude {
-                axis {
-                    name 'ARCH'
-                    values 'aarch64'
-                }
-                axis {
-                    name 'PLATFORM'
-                    values 'linux/amd64'
-                }
-            }
         }
         agent {
           node {
@@ -107,7 +85,7 @@ pipeline {
                           , variant_base: "debian"
                           , variant_version: "${VARIANT_VERSION}"
                           , version: "${RUSTC_VERSION}"
-                          , image_suffix: "base-${ARCH}"
+                          , image_suffix: "base-${ARCH}-${PLATFORM}"
                         )
 
                         buildImage(
@@ -116,7 +94,7 @@ pipeline {
                           , variant_version: "${VARIANT_VERSION}"
                           , version: "${RUSTC_VERSION}"
                           , arch: "${ARCH}"
-                          , platform: "${PLATFORM}"
+                          , platform: "linux/${PLATFORM}"
                           , dockerfile: "Dockerfile.base"
                           , image_name: image_name
                           , pull: true
@@ -152,30 +130,8 @@ pipeline {
           }
           axis {
             name 'PLATFORM'
-            values 'linux/amd64', 'linux/arm64'
+            values 'amd64', 'arm64'
           }
-        }
-        excludes {
-            exclude {
-                axis {
-                    name 'ARCH'
-                    values 'x86_64'
-                }
-                axis {
-                    name 'PLATFORM'
-                    values 'linux/arm64'
-                }
-            }
-            exclude {
-                axis {
-                    name 'ARCH'
-                    values 'aarch64'
-                }
-                axis {
-                    name 'PLATFORM'
-                    values 'linux/amd64'
-                }
-            }
         }
         agent {
           node {
@@ -213,14 +169,14 @@ pipeline {
                         , variant_base: "debian"
                         , variant_version: "${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
-                        , image_suffix: "${ARCH}"
+                        , image_suffix: "${ARCH}-${PLATFORM}"
                       )
                       def base_name = generateImageName(
                         name: "rust"
                         , variant_base: "debian"
                         , variant_version: "${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
-                        , image_suffix: "base-${ARCH}"
+                        , image_suffix: "base-${ARCH}-${PLATFORM}"
                       )
                       // GCR image
                       buildImage(
@@ -229,7 +185,7 @@ pipeline {
                         , variant_version: "${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
                         , arch: "${ARCH}"
-                        , platform: "${PLATFORM}"
+                        , platform: "linux/${PLATFORM}"
                         , dockerfile: "Dockerfile"
                         , image_name: image_name
                         , base_name: base_name
@@ -254,7 +210,7 @@ pipeline {
                                 , variant_version: "${VARIANT_VERSION}"
                                 , version: "${RUSTC_VERSION}"
                                 , arch: "${ARCH}"
-                                , platform: "${PLATFORM}"
+                                , platform: "linux/${PLATFORM}"
                                 , dockerfile: "Dockerfile"
                                 , image_name: docker_name
                                 , base_name: base_name
@@ -280,6 +236,39 @@ pipeline {
         } // End Build Rust Images stages
       }
     }
+    stage('Create Multi-Arch Images') {
+        steps{
+            script {
+                def archs = ['x86_64', 'aarch64']
+
+                for (arch in archs) {
+                    def image_name = generateImageName(
+                        name: "rust"
+                        , variant_base: "debian"
+                        , variant_version: "${VARIANT_VERSION}"
+                        , version: "${RUSTC_VERSION}"
+                        , image_suffix: "${ARCH}"
+                    )
+                    def arm64_image_name = generateImageName(
+                        name: "rust"
+                        , variant_base: "debian"
+                        , variant_version: "${VARIANT_VERSION}"
+                        , version: "${RUSTC_VERSION}"
+                        , image_suffix: "${ARCH}-linux/arm64"
+                    )
+                    def amd64_image_name = generateImageName(
+                        name: "rust"
+                        , variant_base: "debian"
+                        , variant_version: "${VARIANT_VERSION}"
+                        , version: "${RUSTC_VERSION}"
+                        , image_suffix: "${ARCH}-linux/amd64"
+                    )
+                    sh("docker manifest create ${image_name} --amend ${arm64_image_name} --amend ${amd64_image_name}")
+                    sh("docker push ${image_name}")
+                }
+            }
+        }
+     }
   }
 }
 
