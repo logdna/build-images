@@ -277,14 +277,14 @@ pipeline {
                    , variant_base: "debian"
                    , variant_version: "${VARIANT_VERSION}"
                    , version: "${RUSTC_VERSION}"
-                   , image_suffix: "${ARCH}-linux/arm64"
+                   , image_suffix: "${ARCH}-arm64"
                    )
                 def amd64_image_name = generateImageName(
                    name: "rust"
                    , variant_base: "debian"
                    , variant_version: "${VARIANT_VERSION}"
                    , version: "${RUSTC_VERSION}"
-                   , image_suffix: "${ARCH}-linux/amd64"
+                   , image_suffix: "${ARCH}-amd64"
                    )
                 if ((env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) || env.PUBLISH_IMAGE) {
                   sh("docker manifest create ${image_name} --amend ${arm64_image_name} --amend ${amd64_image_name}")
