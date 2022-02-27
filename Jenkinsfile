@@ -255,6 +255,12 @@ pipeline {
             values 'x86_64', 'aarch64'
           }
         }
+        agent {
+          node {
+            label 'ec2-fleet'
+            customWorkspace "docker-images-${BUILD_NUMBER}"
+          }
+        }
         stages {
           stage ('Create Multi Arch Manifest') {
             steps {
