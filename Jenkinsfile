@@ -288,7 +288,7 @@ pipeline {
                    )
                 if ((env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) || env.PUBLISH_IMAGE) {
                   sh("docker manifest create ${image_name} --amend ${arm64_image_name} --amend ${amd64_image_name}")
-                  sh("docker push ${image_name}")
+                  sh("docker manifest push ${image_name}")
                 }
               }
             }
