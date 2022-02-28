@@ -200,7 +200,7 @@ pipeline {
                         , variant_base: "rust"
                         , variant_version: "rust-${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
-                        , image_suffix: "${ARCH}"
+                        , image_suffix: "${ARCH}-${PLATFORM}"
                       )
                       // Dockerhub image
                       docker.withRegistry(
@@ -286,9 +286,39 @@ pipeline {
                    , version: "${RUSTC_VERSION}"
                    , image_suffix: "${ARCH}-amd64"
                    )
+                def docker_image_name = generateImageName(
+                    repo_base: "docker.io/logdna",
+                    , name: "build-images"
+                    , variant_base: "rust"
+                    , variant_version: "rust-${VARIANT_VERSION}"
+                    , version: "${RUSTC_VERSION}"
+                    , image_suffix: "${ARCH}"
+                    )
+                def docker_amd64_image_name = generateImageName(
+                    repo_base: "docker.io/logdna",
+                    , name: "build-images"
+                    , variant_base: "rust"
+                    , variant_version: "rust-${VARIANT_VERSION}"
+                    , version: "${RUSTC_VERSION}"
+                    , image_suffix: "${ARCH}-amd64"
+                    )
+                def docker_arm64_image_name = generateImageName(
+                    repo_base: "docker.io/logdna",
+                    , name: "build-images"
+                    , variant_base: "rust"
+                    , variant_version: "rust-${VARIANT_VERSION}"
+                    , version: "${RUSTC_VERSION}"
+                    , image_suffix: "${ARCH}-arm64"
+                    )
                 if ((env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) || env.PUBLISH_IMAGE) {
-                  sh("docker manifest create ${image_name} --amend ${arm64_image_name} --amend ${amd64_image_name}")
-                  sh("docker manifest push ${image_name}")
+                  // GCR image
+                  sh("docker manifest create ${gcr_image_name} --amend ${gcr_arm64_image_name} --amend ${gcr_amd64_image_name}")
+                  sh("docker push ${gcr_image_name}")
+                  // Dockerhub image
+                  sh("docker manifest create ${docker_image_name} --amend ${docker_arm64_image_name} --amend ${docker_amd64_image_name}")
+                  docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-username-password') {
+                    sh("docker push ${docker_image_name}")
+                  }
                 }
               }
             }
