@@ -263,6 +263,9 @@ pipeline {
         }
         stages {
           stage ('Create Multi Arch Manifest') {
+            when {
+                expression { return ((env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) || env.PUBLISH_IMAGE) }
+            }
             steps {
               script {
                 def image_name = generateImageName(
@@ -310,15 +313,13 @@ pipeline {
                     , version: "${RUSTC_VERSION}"
                     , image_suffix: "${ARCH}-arm64"
                     )
-                if ((env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) || env.PUBLISH_IMAGE) {
-                  // GCR image
-                  sh("docker manifest create ${gcr_image_name} --amend ${gcr_arm64_image_name} --amend ${gcr_amd64_image_name}")
-                  sh("docker push ${gcr_image_name}")
-                  // Dockerhub image
-                  sh("docker manifest create ${docker_image_name} --amend ${docker_arm64_image_name} --amend ${docker_amd64_image_name}")
-                  docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-username-password') {
-                    sh("docker push ${docker_image_name}")
-                  }
+                // GCR image
+                sh("docker manifest create ${gcr_image_name} --amend ${gcr_arm64_image_name} --amend ${gcr_amd64_image_name}")
+                sh("docker push ${gcr_image_name}")
+                // Dockerhub image
+                sh("docker manifest create ${docker_image_name} --amend ${docker_arm64_image_name} --amend ${docker_amd64_image_name}")
+                docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-username-password') {
+                  sh("docker push ${docker_image_name}")
                 }
               }
             }
