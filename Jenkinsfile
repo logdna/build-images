@@ -268,26 +268,26 @@ pipeline {
             }
             steps {
               script {
-                def image_name = generateImageName(
+                def gcr_image_name = generateImageName(
                    name: "rust"
                    , variant_base: "debian"
                    , variant_version: "${VARIANT_VERSION}"
                    , version: "${RUSTC_VERSION}"
                    , image_suffix: "${ARCH}"
                    )
-                def arm64_image_name = generateImageName(
-                   name: "rust"
-                   , variant_base: "debian"
-                   , variant_version: "${VARIANT_VERSION}"
-                   , version: "${RUSTC_VERSION}"
-                   , image_suffix: "${ARCH}-arm64"
-                   )
-                def amd64_image_name = generateImageName(
+                def gcr_amd64_image_name = generateImageName(
                    name: "rust"
                    , variant_base: "debian"
                    , variant_version: "${VARIANT_VERSION}"
                    , version: "${RUSTC_VERSION}"
                    , image_suffix: "${ARCH}-amd64"
+                   )
+                def gcr_arm64_image_name = generateImageName(
+                   name: "rust"
+                   , variant_base: "debian"
+                   , variant_version: "${VARIANT_VERSION}"
+                   , version: "${RUSTC_VERSION}"
+                   , image_suffix: "${ARCH}-arm64"
                    )
                 def docker_image_name = generateImageName(
                     repo_base: "docker.io/logdna",
