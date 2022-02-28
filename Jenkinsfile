@@ -193,6 +193,7 @@ pipeline {
                         , image_name: image_name
                         , base_name: base_name
                         , pull: true
+                        , clean: false
                       )
                       def docker_name = generateImageName(
                         repo_base: "docker.io/logdna",
@@ -217,7 +218,6 @@ pipeline {
                                 , dockerfile: "Dockerfile"
                                 , image_name: docker_name
                                 , base_name: base_name
-                                , clean: false
                             )
                       }
                       try {
