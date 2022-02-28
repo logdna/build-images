@@ -49,7 +49,7 @@ pipeline {
           }
           axis {
             name 'PLATFORM'
-            values 'amd64', 'arm64'
+            values 'linux/amd64', 'linux/arm64'
           }
         }
         agent {
@@ -88,7 +88,7 @@ pipeline {
                           , variant_base: "debian"
                           , variant_version: "${VARIANT_VERSION}"
                           , version: "${RUSTC_VERSION}"
-                          , image_suffix: "base-${ARCH}-${PLATFORM}"
+                          , image_suffix: "base-${ARCH}-${PLATFORM.replaceAll('/','-')}"
                         )
 
                         buildImage(
@@ -97,7 +97,7 @@ pipeline {
                           , variant_version: "${VARIANT_VERSION}"
                           , version: "${RUSTC_VERSION}"
                           , arch: "${ARCH}"
-                          , platform: "linux/${PLATFORM}"
+                          , platform: "${PLATFORM}"
                           , dockerfile: "Dockerfile.base"
                           , image_name: image_name
                           , pull: true
@@ -133,7 +133,7 @@ pipeline {
           }
           axis {
             name 'PLATFORM'
-            values 'amd64', 'arm64'
+            values 'linux/amd64', 'linux/arm64'
           }
         }
         agent {
@@ -172,14 +172,14 @@ pipeline {
                         , variant_base: "debian"
                         , variant_version: "${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
-                        , image_suffix: "${ARCH}-${PLATFORM}"
+                        , image_suffix: "${ARCH}-${PLATFORM.replaceAll('/','-')}"
                       )
                       def base_name = generateImageName(
                         name: "rust"
                         , variant_base: "debian"
                         , variant_version: "${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
-                        , image_suffix: "base-${ARCH}-${PLATFORM}"
+                        , image_suffix: "base-${ARCH}-${PLATFORM.replaceAll('/','-')}"
                       )
                       // GCR image
                       buildImage(
@@ -188,7 +188,7 @@ pipeline {
                         , variant_version: "${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
                         , arch: "${ARCH}"
-                        , platform: "linux/${PLATFORM}"
+                        , platform: "${PLATFORM}"
                         , dockerfile: "Dockerfile"
                         , image_name: image_name
                         , base_name: base_name
@@ -200,7 +200,7 @@ pipeline {
                         , variant_base: "rust"
                         , variant_version: "rust-${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
-                        , image_suffix: "${ARCH}-${PLATFORM}"
+                        , image_suffix: "${ARCH}-${PLATFORM.replaceAll('/','-')}"
                       )
                       // Dockerhub image
                       docker.withRegistry(
@@ -213,7 +213,7 @@ pipeline {
                                 , variant_version: "${VARIANT_VERSION}"
                                 , version: "${RUSTC_VERSION}"
                                 , arch: "${ARCH}"
-                                , platform: "linux/${PLATFORM}"
+                                , platform: "${PLATFORM}"
                                 , dockerfile: "Dockerfile"
                                 , image_name: docker_name
                                 , base_name: base_name
