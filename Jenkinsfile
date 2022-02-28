@@ -43,10 +43,12 @@ pipeline {
             name 'VARIANT_VERSION'
             values 'buster', 'bullseye'
           }
+          // Target ISA for musl cross comp toolchain and precompiled libs
           axis {
             name 'ARCH'
             values 'x86_64', 'aarch64'
           }
+          // Host architecture of the built image
           axis {
             name 'PLATFORM'
             values 'linux/amd64', 'linux/arm64'
@@ -127,10 +129,12 @@ pipeline {
             name 'VARIANT_VERSION'
             values 'buster', 'bullseye'
           }
+          // Target ISA for musl cross comp toolchain and precompiled libs
           axis {
             name 'ARCH'
             values 'x86_64', 'aarch64'
           }
+          // Host architecture of the built image
           axis {
             name 'PLATFORM'
             values 'linux/amd64', 'linux/arm64'
@@ -250,6 +254,7 @@ pipeline {
             name 'VARIANT_VERSION'
             values 'buster', 'bullseye'
           }
+          // Target ISA for musl cross comp toolchain and precompiled libs
           axis {
             name 'ARCH'
             values 'x86_64', 'aarch64'
