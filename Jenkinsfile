@@ -1,7 +1,12 @@
 library 'magic-butler-catalogue'
 
 pipeline {
-  agent none
+  agent {
+    node {
+      label 'ec2-fleet'
+      customWorkspace "docker-images-${BUILD_NUMBER}"
+    }
+  }
 
   options {
     timestamps()
@@ -70,12 +75,6 @@ pipeline {
                     values 'linux/amd64'
                 }
             }
-        }
-        agent {
-          node {
-            label 'ec2-fleet'
-            customWorkspace "docker-images-${BUILD_NUMBER}"
-          }
         }
         stages {
           stage('Initilize qemu') {
@@ -176,12 +175,6 @@ pipeline {
                     values 'linux/amd64'
                 }
             }
-        }
-        agent {
-          node {
-            label 'ec2-fleet'
-            customWorkspace "docker-images-${BUILD_NUMBER}"
-          }
         }
         stages {
           stage('Initilize qemu') {
