@@ -34,7 +34,7 @@ pipeline {
         axes {
           axis {
             name 'RUSTC_VERSION'
-            values 'stable', 'beta', '1.54.0'
+            values 'stable', 'beta'
           }
           axis {
             name 'VARIANT_VERSION'
@@ -140,7 +140,7 @@ pipeline {
         axes {
           axis {
             name 'RUSTC_VERSION'
-            values 'stable', 'beta', '1.54.0'
+            values 'stable', 'beta'
           }
           axis {
             name 'VARIANT_VERSION'
