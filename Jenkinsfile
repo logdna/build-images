@@ -244,7 +244,7 @@ pipeline {
                         , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
                       )
                       // Dockerhub image
-                      if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" || env.PUBLISH_DOCKER_IMAGE) {
+                      if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" || params.PUBLISH_DOCKER_IMAGE == true) {
                         docker.withRegistry('https://index.docker.io/v1/',
                                             'dockerhub-username-password') {
 
