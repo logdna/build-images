@@ -137,7 +137,7 @@ pipeline {
           stage ('Create GCR Multi Arch Manifest') {
             steps {
               script {
-                def gcr_image_name = createMultiArchImageManifest(
+                def gcr_manifest_name = createMultiArchImageManifest(
                     name: "rust"
                     , variant_base: "debian"
                     , variant_version: "${VARIANT_VERSION}"
@@ -146,7 +146,7 @@ pipeline {
                     , append_git_sha: !(env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" )
                     )
                 // GCR image
-                sh("docker push ${gcr_image_name}")
+                sh("docker manifest push ${gcr_manifest_name}")
               }
             }
           }
