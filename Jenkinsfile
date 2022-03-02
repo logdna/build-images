@@ -43,11 +43,6 @@ pipeline {
             name 'VARIANT_VERSION'
             values 'buster', 'bullseye'
           }
-          // Target ISA for musl cross comp toolchain and precompiled libs
-          axis {
-            name 'ARCH'
-            values 'x86_64', 'aarch64'
-          }
           // Host architecture of the built image
           axis {
             name 'PLATFORM'
@@ -90,7 +85,7 @@ pipeline {
                           , variant_base: "debian"
                           , variant_version: "${VARIANT_VERSION}"
                           , version: "${RUSTC_VERSION}"
-                          , image_suffix: "base-${ARCH}-${PLATFORM.replaceAll('/','-')}"
+                          , image_suffix: "base-${PLATFORM.replaceAll('/','-')}"
                         )
 
                         buildImage(
@@ -98,7 +93,6 @@ pipeline {
                           , variant_base: "debian"
                           , variant_version: "${VARIANT_VERSION}"
                           , version: "${RUSTC_VERSION}"
-                          , arch: "${ARCH}"
                           , platform: "${PLATFORM}"
                           , dockerfile: "Dockerfile.base"
                           , image_name: image_name
@@ -131,7 +125,7 @@ pipeline {
           }
           // Target ISA for musl cross comp toolchain and precompiled libs
           axis {
-            name 'ARCH'
+            name 'CROSS_COMPILER_TARGET_ARCH'
             values 'x86_64', 'aarch64'
           }
           // Host architecture of the built image
@@ -176,14 +170,14 @@ pipeline {
                         , variant_base: "debian"
                         , variant_version: "${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
-                        , image_suffix: "${ARCH}-${PLATFORM.replaceAll('/','-')}"
+                        , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
                       )
                       def base_name = generateImageName(
                         name: "rust"
                         , variant_base: "debian"
                         , variant_version: "${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
-                        , image_suffix: "base-${ARCH}-${PLATFORM.replaceAll('/','-')}"
+                        , image_suffix: "base-${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
                       )
                       // GCR image
                       buildImage(
@@ -191,7 +185,7 @@ pipeline {
                         , variant_base: "debian"
                         , variant_version: "${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
-                        , arch: "${ARCH}"
+                        , cross_compiler_target_arch: "${CROSS_COMPILER_TARGET_ARCH}"
                         , platform: "${PLATFORM}"
                         , dockerfile: "Dockerfile"
                         , image_name: image_name
@@ -205,7 +199,7 @@ pipeline {
                         , variant_base: "rust"
                         , variant_version: "rust-${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
-                        , image_suffix: "${ARCH}-${PLATFORM.replaceAll('/','-')}"
+                        , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
                       )
                       // Dockerhub image
                       docker.withRegistry(
@@ -217,7 +211,7 @@ pipeline {
                                 , variant_base: "debian"
                                 , variant_version: "${VARIANT_VERSION}"
                                 , version: "${RUSTC_VERSION}"
-                                , arch: "${ARCH}"
+                                , cross_compiler_target_arch: "${CROSS_COMPILER_TARGET_ARCH}"
                                 , platform: "${PLATFORM}"
                                 , dockerfile: "Dockerfile"
                                 , image_name: docker_name
@@ -256,7 +250,7 @@ pipeline {
           }
           // Target ISA for musl cross comp toolchain and precompiled libs
           axis {
-            name 'ARCH'
+            name 'CROSS_COMPILER_TARGET_ARCH'
             values 'x86_64', 'aarch64'
           }
         }
@@ -278,21 +272,21 @@ pipeline {
                    , variant_base: "debian"
                    , variant_version: "${VARIANT_VERSION}"
                    , version: "${RUSTC_VERSION}"
-                   , image_suffix: "${ARCH}"
+                   , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}"
                    )
                 def gcr_amd64_image_name = generateImageName(
                    name: "rust"
                    , variant_base: "debian"
                    , variant_version: "${VARIANT_VERSION}"
                    , version: "${RUSTC_VERSION}"
-                   , image_suffix: "${ARCH}-amd64"
+                   , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-amd64"
                    )
                 def gcr_arm64_image_name = generateImageName(
                    name: "rust"
                    , variant_base: "debian"
                    , variant_version: "${VARIANT_VERSION}"
                    , version: "${RUSTC_VERSION}"
-                   , image_suffix: "${ARCH}-arm64"
+                   , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-arm64"
                    )
                 def docker_image_name = generateImageName(
                     repo_base: "docker.io/logdna",
@@ -300,7 +294,7 @@ pipeline {
                     , variant_base: "rust"
                     , variant_version: "rust-${VARIANT_VERSION}"
                     , version: "${RUSTC_VERSION}"
-                    , image_suffix: "${ARCH}"
+                    , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}"
                     )
                 def docker_amd64_image_name = generateImageName(
                     repo_base: "docker.io/logdna",
@@ -308,7 +302,7 @@ pipeline {
                     , variant_base: "rust"
                     , variant_version: "rust-${VARIANT_VERSION}"
                     , version: "${RUSTC_VERSION}"
-                    , image_suffix: "${ARCH}-amd64"
+                    , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-amd64"
                     )
                 def docker_arm64_image_name = generateImageName(
                     repo_base: "docker.io/logdna",
@@ -316,7 +310,7 @@ pipeline {
                     , variant_base: "rust"
                     , variant_version: "rust-${VARIANT_VERSION}"
                     , version: "${RUSTC_VERSION}"
-                    , image_suffix: "${ARCH}-arm64"
+                    , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-arm64"
                     )
                 // GCR image
                 sh("docker manifest create ${gcr_image_name} --amend ${gcr_arm64_image_name} --amend ${gcr_amd64_image_name}")
@@ -397,9 +391,9 @@ def buildImage(Map config = [:]) {
     buildArgs.push([directory, config.dockerfile].join("/"))
   }
 
-  if (config.arch) {
+  if (config.cross_compiler_target_arch) {
     buildArgs.push("--build-arg")
-    buildArgs.push(["ARCH", config.arch].join("="))
+    buildArgs.push(["CROSS_COMPILER_TARGET_ARCH", config.cross_compiler_target_arch].join("="))
   }
 
   if (config.platform) {

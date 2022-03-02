@@ -1,5 +1,5 @@
-ARG ARCH=x86_64
-ARG BASE_IMAGE=logdna/build-images/rust-buster-1-stable-base-${ARCH}
+ARG CROSS_COMPILER_TARGET_ARCH=x86_64
+ARG BASE_IMAGE=logdna/build-images/rust-buster-1-stable-base-${CROSS_COMPILER_TARGET_ARCH}
 FROM ${BASE_IMAGE}
 
 ARG SCCACHE_BUCKET
@@ -10,12 +10,13 @@ ARG SCCACHE_SERVER_PORT=4226
 ARG AWS_ACCESS_KEY_ID
 ARG AWS_SECRET_ACCESS_KEY
 
-ARG ARCH=x86_64
+ARG CROSS_COMPILER_TARGET_ARCH=x86_64
 
-RUN rustup target add ${ARCH}-unknown-linux-musl && \
+RUN rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl && \
+    rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-gnu  && \
     chmod -R a+rw $RUSTUP_HOME $CARGO_HOME
 
-## Install a musl cross compiler for ${ARCH} using musl-cross-make
+## Install a musl cross compiler for ${CROSS_COMPILER_TARGET_ARCH} using musl-cross-make
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
@@ -31,16 +32,13 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
         DL_CMD='curl --retry 3 -sSfL -C - -o' \
         LINUX_HEADERS_SITE=https://ci-mirrors.rust-lang.org/rustc/sabotage-linux-tarballs \
         OUTPUT=/usr/local/ \
-        TARGET=${ARCH}-linux-musl && \
+        TARGET=${CROSS_COMPILER_TARGET_ARCH}-linux-musl && \
     sccache --show-stats && \
     rm -rf /tmp/musl-cross
 
-RUN echo "[target.${ARCH}-unknown-linux-musl]" >> $CARGO_HOME/config.toml && \
-    echo "linker = \"${ARCH}-linux-musl-gcc\"" >> $CARGO_HOME/config.toml
-
-## Set up cargo env vars for cross compiling
-ENV CC_${ARCH}_unknown_linux_musl=${ARCH}-linux-musl-gcc \
-    CXX_${ARCH}_unknown_linux_musl=${ARCH}-linux-musl-g++
+## Set up default cargo env vars for cross compiling
+ENV CC_${CROSS_COMPILER_TARGET_ARCH}_unknown_linux_musl=${CROSS_COMPILER_TARGET_ARCH}-linux-musl-gcc \
+    CXX_${CROSS_COMPILER_TARGET_ARCH}_unknown_linux_musl=${CROSS_COMPILER_TARGET_ARCH}-linux-musl-g++
 
 ## Install static Zlib
 ARG ZLIB_VERSION=1.2.11
@@ -51,7 +49,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     cd /tmp && \
     curl -fLO "http://zlib.net/zlib-$ZLIB_VERSION.tar.gz" && \
     tar xzf "zlib-$ZLIB_VERSION.tar.gz" && cd "zlib-$ZLIB_VERSION" && \
-    CC="$CC_WRAPPER ${ARCH}-linux-musl-gcc" ./configure --static --prefix=/usr/local/musl && \
+    CC="$CC_WRAPPER ${CROSS_COMPILER_TARGET_ARCH}-linux-musl-gcc" ./configure --static --prefix=/usr/local/musl && \
     make -j$(nproc) && make install && \
     sccache --show-stats && \
     rm -r /tmp/*
@@ -71,13 +69,13 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     cd rocksdb && \
     git checkout v6.22.1 && \
     PORTABLE=1 CCFLAGS=-fPIC CXXFLAGS=-fPIC \
-    CC="$CC_WRAPPER ${ARCH}-linux-musl-gcc" CXX="$CC_WRAPPER ${ARCH}-linux-musl-g++" \
+    CC="$CC_WRAPPER ${CROSS_COMPILER_TARGET_ARCH}-linux-musl-gcc" CXX="$CC_WRAPPER ${CROSS_COMPILER_TARGET_ARCH}-linux-musl-g++" \
     make -j$(nproc) static_lib && \
-    mkdir -p /usr/local/rocksdb/${ARCH}-linux-musl/lib && \
-    mkdir /usr/local/rocksdb/${ARCH}-linux-musl/include && \
-    cp librocksdb.a* /usr/local/rocksdb/${ARCH}-linux-musl/lib && \
-    cp -r include /usr/local/rocksdb/${ARCH}-linux-musl/ && \
-    cp -r include/* /usr/include/${ARCH}-linux-musl/ && \
+    mkdir -p /usr/local/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/lib && \
+    mkdir /usr/local/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/include && \
+    cp librocksdb.a* /usr/local/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/lib && \
+    cp -r include /usr/local/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/ && \
+    cp -r include/* /usr/include/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/ && \
     sccache --show-stats && \
     rm -R /tmp/rocksdb/
 
