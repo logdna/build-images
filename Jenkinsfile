@@ -44,7 +44,6 @@ pipeline {
             name 'VARIANT_VERSION'
             values 'buster', 'bullseye'
           }
-          // Host architecture of the built image
           axis {
             name 'PLATFORM'
             // Support for x86_64 and arm64 for Mac M1s/AWS graviton devs/builders
