@@ -116,7 +116,7 @@ pipeline {
     } // End Build Rust Images stage
     // Build the images containing the cross compilers targeting actual
     // distribution platforms
-    stage('Build CROSS_COMPILER_TARGET_ARCH Specific images on top of PLATFORM's base image') {
+    stage('Build CROSS_COMPILER_TARGET_ARCH Specific images on top of PLATFORMs base image') {
       matrix {
         axes {
           axis {
