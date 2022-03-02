@@ -274,7 +274,7 @@ pipeline {
             }
             steps {
               script {
-                def gcr_image_name = createMultiArchImageManifest(
+                def gcr_manifest_name = createMultiArchImageManifest(
                     name: "rust"
                     , variant_base: "debian"
                     , variant_version: "${VARIANT_VERSION}"
@@ -283,7 +283,7 @@ pipeline {
                     , append_git_sha: !(env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" )
                     )
                 // GCR image
-                sh("docker push ${gcr_image_name}")
+                sh("docker manifest push ${gcr_manifest_name}")
               }
             }
           }
@@ -293,7 +293,7 @@ pipeline {
             }
             steps {
               script {
-                def docker_image_name = createMultiArchImageManifest(
+                def docker_manifest_name = createMultiArchImageManifest(
                     repo_base: "docker.io/logdna",
                     , name: "build-images"
                     , variant_base: "rust"
@@ -304,7 +304,7 @@ pipeline {
                     )
                 // Dockerhub image
                 docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-username-password') {
-                  sh("docker push ${docker_image_name}")
+                  sh("docker manifest push ${docker_manifest_name}")
                 }
               }
             }
