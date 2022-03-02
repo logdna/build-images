@@ -444,7 +444,7 @@ def createMultiArchImageManifest(Map config = [:]){
       , variant_base: config.variant_base
       , variant_version: config.variant_version
       , version: config.version
-      , image_suffix: "${config.image_suffix}-amd64"
+      , image_suffix: "${config.image_suffix}-linux-amd64"
       , append_git_sha: append_git_sha
       )
   def arm64_image_name = generateImageName(
@@ -453,7 +453,7 @@ def createMultiArchImageManifest(Map config = [:]){
       , variant_base: config.variant_base
       , variant_version: config.variant_version
       , version: config.version
-      , image_suffix: "${config.image_suffix}-arm64"
+      , image_suffix: "${config.image_suffix}-linux-arm64"
       , append_git_sha: append_git_sha
       )
   sh("docker manifest create ${manifest_name} --amend ${arm64_image_name} --amend ${amd64_image_name}")
