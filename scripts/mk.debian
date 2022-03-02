@@ -10,25 +10,28 @@ export DOCKER_BUILDKIT=1
 #   linux/arm64       aarch64
 declare -A platforms=( ["x86_64"]="linux/amd64" ["aarch64"]="linux/arm64")
 
-CROSS_COMPILER_TARGET_ARCHS="x86_64 aarch64"
+CROSS_COMPILER_TARGET_ARCHS="aarch64 x86_64"
 
-# Default to the host ARCH
+# Default to the host arch, set PLATFORM_ARCH to override
 HOST_ARCH=$(uname -m)
 # special case handling for M1s
 if [[ $HOST_ARCH == 'arm64' ]]; then
-    HOST_ARCH=${HOST_ARCH:-'aarch64'}
+    HOST_ARCH='aarch64'
+    TARGET_ARCH=${PLATFORM_ARCH:-$HOST_ARCH}
 else
-    HOST_ARCH=${HOST_ARCH:-$HOST_ARCH}
+    TARGET_ARCH=${PLATFORM_ARCH:-$HOST_ARCH}
 fi
 
-PLATFORM=${PLATFORM:-${platforms[$HOST_ARCH]}}
+PLATFORM=${PLATFORM:-${platforms[$TARGET_ARCH]}}
 VARIANT_VERSION=${VARIANT_VERSION:-buster}
+
 time (
 echo
 echo ===================================================
 echo
+
 # shellcheck disable=SC2086
-docker build --platform "$PLATFORM" \
+docker build --platform "$TARGET_ARCH" \
              --progress=plain \
              --build-arg "SCCACHE_BUCKET=${SCCACHE_BUCKET}" \
              --build-arg "SCCACHE_REGION=${SCCACHE_REGION}" \
@@ -37,24 +40,26 @@ docker build --platform "$PLATFORM" \
              --build-arg "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" \
              --build-arg "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" \
              --build-arg "VARIANT_VERSION=${VARIANT_VERSION}" \
-             -t "docker.io/logdna/build-images:rust-${VARIANT_VERSION}-1-stable-base" \
+             -t docker.io/logdna/build-images:rust-${VARIANT_VERSION}-1-stable-base \
              -f rust/debian/Dockerfile.base ${PULL_OPTS} rust/debian
+
 echo
 echo ===================================================
 echo
 for CROSS_COMPILER_TARGET_ARCH in $CROSS_COMPILER_TARGET_ARCHS
 do
+    # shellcheck disable=SC2086
     docker build --platform "$PLATFORM" \
-                --progress=plain \
-                --build-arg "SCCACHE_BUCKET=${SCCACHE_BUCKET}" \
-                --build-arg "SCCACHE_REGION=${SCCACHE_REGION}" \
-                --build-arg "SCCACHE_ENDPOINT=${SCCACHE_ENDPOINT}" \
-                --build-arg "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" \
-                --build-arg "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" \
-                --build-arg "CROSS_COMPILER_TARGET_ARCH=${CROSS_COMPILER_TARGET_ARCH}" \
-                --build-arg "BASE_IMAGE=docker.io/logdna/build-images:rust-${VARIANT_VERSION}-1-stable-base" \
-                -t "docker.io/logdna/build-images:rust-${VARIANT_VERSION}-1-stable-${CROSS_COMPILER_TARGET_ARCH}" \
-                -f rust/debian/Dockerfile rust/debian
+                 --progress=plain \
+                 --build-arg "SCCACHE_BUCKET=${SCCACHE_BUCKET}" \
+                 --build-arg "SCCACHE_REGION=${SCCACHE_REGION}" \
+                 --build-arg "SCCACHE_ENDPOINT=${SCCACHE_ENDPOINT}" \
+                 --build-arg "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" \
+                 --build-arg "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" \
+                 --build-arg "CROSS_COMPILER_TARGET_ARCH=${CROSS_COMPILER_TARGET_ARCH}" \
+                 --build-arg "BASE_IMAGE=docker.io/logdna/build-images:rust-${VARIANT_VERSION}-1-stable-base" \
+                 -t docker.io/logdna/build-images:rust-${VARIANT_VERSION}-1-stable-${CROSS_COMPILER_TARGET_ARCH} \
+                 -f rust/debian/Dockerfile rust/debian
 done
 echo
 echo @@@@@@  SUCCESS  @@@@@@
