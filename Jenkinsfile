@@ -115,6 +115,44 @@ pipeline {
     } // End Build Rust Images stage
     // Build the images containing the cross compilers targeting actual
     // distribution platforms
+    stage('Create Multi-Arch Manifests/Images for Base') {
+      matrix {
+        axes {
+          axis {
+            name 'RUSTC_VERSION'
+            values 'stable', 'beta'
+          }
+          axis {
+            name 'VARIANT_VERSION'
+            values 'buster', 'bullseye'
+          }
+        }
+        agent {
+          node {
+            label 'ec2-fleet'
+            customWorkspace "docker-images-${BUILD_NUMBER}"
+          }
+        }
+        stages {
+          stage ('Create GCR Multi Arch Manifest') {
+            steps {
+              script {
+                def gcr_image_name = createMultiArchImageManifest(
+                    name: "rust"
+                    , variant_base: "debian"
+                    , variant_version: "${VARIANT_VERSION}"
+                    , version: "${RUSTC_VERSION}"
+                    , image_suffix: "base"
+                    , append_git_sha: (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" )
+                    )
+                // GCR image
+                sh("docker push ${gcr_image_name}")
+              }
+            }
+          }
+        }
+      }
+    }
     stage('Build CROSS_COMPILER_TARGET_ARCH Specific images on top of PLATFORMs base image') {
       matrix {
         axes {
@@ -168,6 +206,13 @@ pipeline {
                         echo 'AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY' >> ${WORKSPACE}/.aws_creds
                     """
                     script {
+                      def base_name = generateImageName(
+                        name: "rust"
+                        , variant_base: "debian"
+                        , variant_version: "${VARIANT_VERSION}"
+                        , version: "${RUSTC_VERSION}"
+                        , image_suffix: "base"
+                      )
                       def image_name = generateImageName(
                         name: "rust"
                         , variant_base: "debian"
@@ -175,15 +220,8 @@ pipeline {
                         , version: "${RUSTC_VERSION}"
                         , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
                       )
-                      def base_name = generateImageName(
-                        name: "rust"
-                        , variant_base: "debian"
-                        , variant_version: "${VARIANT_VERSION}"
-                        , version: "${RUSTC_VERSION}"
-                        , image_suffix: "base-${PLATFORM.replaceAll('/','-')}"
-                      )
                       // GCR image
-                      buildImage(
+                      def image = buildImage(
                         name: "rust"
                         , variant_base: "debian"
                         , variant_version: "${VARIANT_VERSION}"
@@ -206,22 +244,11 @@ pipeline {
                         , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
                       )
                       // Dockerhub image
-                      docker.withRegistry(
-                                'https://index.docker.io/v1/',
-                                'dockerhub-username-password') {
-                            buildImage(
-                                repo_base: "docker.io/logdna",
-                                , name: "rust"
-                                , variant_base: "debian"
-                                , variant_version: "${VARIANT_VERSION}"
-                                , version: "${RUSTC_VERSION}"
-                                , cross_compiler_target_arch: "${CROSS_COMPILER_TARGET_ARCH}"
-                                , platform: "${PLATFORM}"
-                                , dockerfile: "Dockerfile"
-                                , image_name: docker_name
-                                , base_name: base_name
-                                , push: (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" || params.PUBLISH_DOCKER_IMAGE == true)
-                            )
+                      if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" || env.PUBLISH_DOCKER_IMAGE) {
+                        docker.withRegistry('https://index.docker.io/v1/',
+                                            'dockerhub-username-password') {
+                          image.push([docker_name])
+                        }
                       }
                       try {
                         gcr.clean(base_name)

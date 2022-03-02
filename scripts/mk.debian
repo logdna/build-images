@@ -37,7 +37,7 @@ docker build --platform "$PLATFORM" \
              --build-arg "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" \
              --build-arg "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" \
              --build-arg "VARIANT_VERSION=${VARIANT_VERSION}" \
-             -t "docker.io/logdna/build-images:rust-${VARIANT_VERSION}-1-stable-base--${HOST_ARCH}" \
+             -t "docker.io/logdna/build-images:rust-${VARIANT_VERSION}-1-stable-base" \
              -f rust/debian/Dockerfile.base ${PULL_OPTS} rust/debian
 echo
 echo ===================================================
@@ -52,7 +52,7 @@ do
                 --build-arg "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" \
                 --build-arg "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" \
                 --build-arg "CROSS_COMPILER_TARGET_ARCH=${CROSS_COMPILER_TARGET_ARCH}" \
-                --build-arg "BASE_IMAGE=docker.io/logdna/build-images:rust-${VARIANT_VERSION}-1-stable-base-${HOST_ARCH}" \
+                --build-arg "BASE_IMAGE=docker.io/logdna/build-images:rust-${VARIANT_VERSION}-1-stable-base" \
                 -t "docker.io/logdna/build-images:rust-${VARIANT_VERSION}-1-stable-${CROSS_COMPILER_TARGET_ARCH}" \
                 -f rust/debian/Dockerfile rust/debian
 done
