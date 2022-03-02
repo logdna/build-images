@@ -18,9 +18,12 @@ ENV PATH="${CARGO_HOME}/bin:${PATH}"
 COPY llvm-snapshot.gpg.key /llvm-snapshot.gpg.key
 COPY .curlrc /root
 
-RUN env
 
-RUN DEPS='build-essential binutils ca-certificates curl file gcc g++ libtool m4 libc6-dev make xz-utils locales libexpat1-dev gettext libz-dev libssl-dev autoconf pkg-config bzip2 libsystemd-dev systemd lsof procps git cmake automake hunspell-en-gb hunspell-tools linux-perf clang-12 llvm-12 lld-12 texinfo procps' \
+RUN DEPS='build-essential binutils ca-certificates curl file gcc g++ libtool \
+          m4 libc6-dev make xz-utils locales libexpat1-dev gettext libz-dev \
+          libssl-dev autoconf pkg-config bzip2 libsystemd-dev systemd lsof \
+          procps git cmake automake hunspell-en-gb hunspell-tools linux-perf \
+          clang-12 llvm-12 lld-12 libc++-12-dev texinfo procps' \
   && apt-get update \
   && apt-get install -y --no-install-recommends software-properties-common \
   && apt-key add /llvm-snapshot.gpg.key \
@@ -81,3 +84,5 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     cargo install --version 0.6.3 cargo-cache && \
     cargo cache -a && \
     sccache --show-stats
+
+CMD ["bash"]
