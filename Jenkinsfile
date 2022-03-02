@@ -143,7 +143,7 @@ pipeline {
                     , variant_version: "${VARIANT_VERSION}"
                     , version: "${RUSTC_VERSION}"
                     , image_suffix: "base"
-                    , append_git_sha: (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" )
+                    , append_git_sha: !(env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" )
                     )
                 // GCR image
                 sh("docker push ${gcr_image_name}")
