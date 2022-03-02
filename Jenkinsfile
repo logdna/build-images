@@ -334,7 +334,8 @@ def generateImageName(Map config = [:]){
 
   // If config.append_git_sha is set to append it so that the image is unique
   if (append_git_sha) {
-    return "${name}-${env.GIT_REVISION,length=16}"
+    def git_sha = env.GIT_COMMIT
+    return "${name}-${git_sha.substring(0, Math.min(git_sha.length(), 16))}"
   } else {
     return name
   }
