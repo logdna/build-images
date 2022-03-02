@@ -222,7 +222,7 @@ pipeline {
                                 , dockerfile: "Dockerfile"
                                 , image_name: docker_name
                                 , base_name: base_name
-                                , push: (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" || env.PUBLISH_DOCKER_IMAGE)
+                                , push: (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" || params.PUBLISH_DOCKER_IMAGE == true)
                             )
                       }
                       try {
