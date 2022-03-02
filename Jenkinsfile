@@ -32,7 +32,7 @@ pipeline {
       }
     }
 
-    stage('Build Rust Variant Images') {
+    stage('Build base images for each supported build host platform') {
       matrix {
         axes {
           axis {
@@ -46,6 +46,7 @@ pipeline {
           // Host architecture of the built image
           axis {
             name 'PLATFORM'
+            // Support for x86_64 and arm64 for Mac M1s/AWS graviton devs/builders
             values 'linux/amd64', 'linux/arm64'
           }
         }
@@ -66,7 +67,7 @@ pipeline {
               """
             }
           }
-          stage('Build') {
+          stage('Build platform specific base') {
             steps {
                 withCredentials([[
                     $class: 'AmazonWebServicesCredentialsBinding',
@@ -112,7 +113,9 @@ pipeline {
         } // End Build Rust Images stages
       } // End matrix
     } // End Build Rust Images stage
-    stage('Build Rust Arch specific Images') {
+    // Build the images containing the cross compilers targeting actual
+    // distribution platforms
+    stage('Build CROSS_COMPILER_TARGET_ARCH Specific images on top of PLATFORM's base image') {
       matrix {
         axes {
           axis {
@@ -151,7 +154,7 @@ pipeline {
               """
             }
           }
-          stage('Build') {
+          stage('Build cross compilation image') {
             steps {
                 withCredentials([[
                     $class: 'AmazonWebServicesCredentialsBinding',
@@ -237,7 +240,7 @@ pipeline {
         } // End Build Rust Images stages
       }
     }
-    stage('Create Multi-Arch Images') {
+    stage('Create Multi-Arch Manifests/Images') {
       matrix {
         axes {
           axis {
@@ -347,6 +350,7 @@ def generateImageName(Map config = [:]){
   }
 }
 
+// Build and optionally push image
 def buildImage(Map config = [:]) {
   assert config.name : "Missing config.name"
   assert config.variant_base : "Missing config.variant_base"
