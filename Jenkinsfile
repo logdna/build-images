@@ -195,8 +195,7 @@ pipeline {
                         , image_name: image_name
                         , base_name: base_name
                         , pull: true
-                        , push: (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" || env.PUBLISH_GCR_IMAGE)
-
+                        , push: (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" || params.PUBLISH_GCR_IMAGE == true)
                         , clean: false
                       )
                       def docker_name = generateImageName(
@@ -270,7 +269,7 @@ pipeline {
         stages {
           stage ('Create GCR Multi Arch Manifest') {
             when {
-                expression { return ((env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) || env.PUBLISH_GCR_IMAGE) }
+                expression { return ((env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) || params.PUBLISH_GCR_IMAGE == true) }
             }
             steps {
               script {
@@ -289,21 +288,21 @@ pipeline {
           }
           stage ('Create Docker Hub Multi Arch Manifest') {
             when {
-                expression { return ((env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) || env.PUBLISH_DOCKER_IMAGE) }
+                expression { return ((env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) || params.PUBLISH_DOCKER_IMAGE == true) }
             }
             steps {
               script {
-                def docker_manifest_name = createMultiArchImageManifest(
-                    repo_base: "docker.io/logdna",
-                    , name: "build-images"
-                    , variant_base: "rust"
-                    , variant_version: "rust-${VARIANT_VERSION}"
-                    , version: "${RUSTC_VERSION}"
-                    , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}"
-                    , append_git_sha: !(env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" )
-                    )
                 // Dockerhub image
                 docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-username-password') {
+                  def docker_manifest_name = createMultiArchImageManifest(
+                      repo_base: "docker.io/logdna",
+                      , name: "build-images"
+                      , variant_base: "rust"
+                      , variant_version: "rust-${VARIANT_VERSION}"
+                      , version: "${RUSTC_VERSION}"
+                      , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}"
+                      , append_git_sha: !(env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" )
+                      )
                   sh("docker manifest push ${docker_manifest_name}")
                 }
               }
