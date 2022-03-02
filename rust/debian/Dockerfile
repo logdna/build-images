@@ -38,7 +38,7 @@ ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=clang
 ENV CARGO_TARGET_86_64_UNKNOWN_LINUX_MUSL_AR=llvm-ar
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="-Clink-args=-fuse-ld=lld -Clink-args=--target=x86_64-unknown-linux-musl"
 ENV CC_x86_64_unknown_linux_musl=clang
-ENV CFLAGS_aarch64_unknown_linux_musl="-isystem /usr/include/x86_64-linux-musl"
+ENV CFLAGS_x86_64_unknown_linux_musl="-isystem /usr/include/x86_64-linux-musl"
 
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset RUSTC_WRAPPER; fi; \

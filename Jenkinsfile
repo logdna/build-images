@@ -247,7 +247,9 @@ pipeline {
                       if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" || env.PUBLISH_DOCKER_IMAGE) {
                         docker.withRegistry('https://index.docker.io/v1/',
                                             'dockerhub-username-password') {
-                          image.push([docker_name])
+
+                          sh("docker tag ${image_name} ${docker_name}")
+                          sh("docker push ${docker_name}")
                         }
                       }
                       try {
