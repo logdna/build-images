@@ -181,7 +181,7 @@ pipeline {
                         , variant_base: "debian"
                         , variant_version: "${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
-                        , image_suffix: "base-${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
+                        , image_suffix: "base-${PLATFORM.replaceAll('/','-')}"
                       )
                       // GCR image
                       buildImage(
