@@ -280,7 +280,7 @@ pipeline {
                     , variant_version: "${VARIANT_VERSION}"
                     , version: "${RUSTC_VERSION}"
                     , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}"
-                    , append_git_sha: (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" )
+                    , append_git_sha: !(env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" )
                     )
                 // GCR image
                 sh("docker push ${gcr_image_name}")
@@ -300,7 +300,7 @@ pipeline {
                     , variant_version: "rust-${VARIANT_VERSION}"
                     , version: "${RUSTC_VERSION}"
                     , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}"
-                    , append_git_sha: (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" )
+                    , append_git_sha: !(env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" )
                     )
                 // Dockerhub image
                 docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-username-password') {
