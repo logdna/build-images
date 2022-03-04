@@ -279,10 +279,22 @@ pipeline {
                     , variant_version: "${VARIANT_VERSION}"
                     , version: "${RUSTC_VERSION}"
                     , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}"
-                    , append_git_sha: !(env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" )
                     )
-                // GCR image
+                // Push GCR image
                 sh("docker manifest push ${gcr_manifest_name}")
+
+                // If we're on main then also update the untagged version
+                if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) {
+                    gcr_manifest_name = createMultiArchImageManifest(
+                        name: "rust"
+                        , variant_base: "debian"
+                        , variant_version: "${VARIANT_VERSION}"
+                        , version: "${RUSTC_VERSION}"
+                        , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}"
+                        , append_git_sha: false
+                        )
+                    sh("docker manifest push ${gcr_manifest_name}")
+                }
               }
             }
           }
@@ -301,9 +313,24 @@ pipeline {
                       , variant_version: "rust-${VARIANT_VERSION}"
                       , version: "${RUSTC_VERSION}"
                       , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}"
-                      , append_git_sha: !(env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" )
                       )
+                  // Push Dockerhub image
                   sh("docker manifest push ${docker_manifest_name}")
+
+                  // If we're on main then also update the untagged version
+                  if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) {
+                    docker_manifest_name = createMultiArchImageManifest(
+                        repo_base: "docker.io/logdna",
+                        , name: "build-images"
+                        , variant_base: "rust"
+                        , variant_version: "rust-${VARIANT_VERSION}"
+                        , version: "${RUSTC_VERSION}"
+                        , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}"
+                        , append_git_sha: false
+                        )
+                    // Push GCR image
+                    sh("docker manifest push ${docker_manifest_name}")
+                  }
                 }
               }
             }
