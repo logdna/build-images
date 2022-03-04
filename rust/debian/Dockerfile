@@ -29,9 +29,7 @@ ENV SYSROOT_LLVM=$SYSROOT/usr/lib/llvm-${LLVM_VERSION}
 ENV SYSROOT_CLANG=$SYSROOT/usr/lib/clang/${LLVM_VERSION}
 
 # Set up llvm sysroot
-RUN \
-    set -x \
-    dpkg --add-architecture ${TARGETARCH} && \
+RUN dpkg --add-architecture ${TARGETARCH} && \
     dpkg --add-architecture ${!CROSS_COMPILER_TARGET_ARCH} && \
     apt-get update -y && apt-get install -y musl-dev:${TARGETARCH} && \
     mkdir -p $SYSROOT && cd /tmp && \
@@ -75,7 +73,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
 RUN rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-gnu  && \
     chmod -R a+rw $RUSTUP_HOME $CARGO_HOME
 
-RUN set -x; curl -fSLo /tmp/musl.tar.gz https://www.musl-libc.org/releases/musl-$MUSL_VERSION.tar.gz && \
+RUN curl -fSLo /tmp/musl.tar.gz https://www.musl-libc.org/releases/musl-$MUSL_VERSION.tar.gz && \
     tar -C /tmp -xf /tmp/musl.tar.gz
 
 # Compile and install musl
@@ -128,7 +126,6 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
     echo "Building rocksdb" && \
-    set -x; \
     git clone https://github.com/facebook/rocksdb.git --branch v6.22.1 --depth=1 /tmp/rocksdb; \
     cd /tmp/rocksdb && \
     export USE_CLANG=1 TARGET_OS=Linux PORTABLE=1 AR=llvm-ar; \
