@@ -83,7 +83,9 @@ pipeline {
                 free -h && df -h
                 cat /proc/cpuinfo
                 # initialize qemu
-                docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+                test -z /proc/sys/fs/binfmt_misc/ && \
+                docker run --rm --privileged multiarch/qemu-user-static --reset -p yes || \
+                echo "Qemu binfmts already registered"
               """
             }
           }
@@ -183,7 +185,9 @@ pipeline {
                 free -h && df -h
                 cat /proc/cpuinfo
                 # initialize qemu
-                docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+                test -z /proc/sys/fs/binfmt_misc/ && \
+                docker run --rm --privileged multiarch/qemu-user-static --reset -p yes || \
+                echo "Qemu binfmts already registered"
               """
             }
           }
