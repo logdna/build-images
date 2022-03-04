@@ -9,8 +9,9 @@ ARG SCCACHE_REGION
 ARG SCCACHE_ENDPOINT
 ARG SCCACHE_SERVER_PORT=4226
 ARG SCCACHE_RECACHE
-ARG AWS_ACCESS_KEY_ID
-ARG AWS_SECRET_ACCESS_KEY
+
+ENV LLVM_VERSION=13
+ENV VARIANT_VERSION=${VARIANT_VERSION}
 
 ENV CARGO_HOME="/opt/rust/cargo"
 ENV RUSTUP_HOME="/opt/rust/rustup"
@@ -18,15 +19,21 @@ ENV PATH="${CARGO_HOME}/bin:${PATH}"
 COPY llvm-snapshot.gpg.key /llvm-snapshot.gpg.key
 COPY .curlrc /root
 
-RUN DEPS='build-essential binutils ca-certificates curl file gcc g++ libtool \
+# Handly lookup env vars
+ENV amd64=x86_64
+ENV arm64=aarch64
+ENV x86_64=amd64
+ENV aarch64=arm64
+
+RUN DEPS="build-essential binutils ca-certificates curl file gcc g++ libtool \
           m4 libc6-dev make xz-utils locales libexpat1-dev gettext libz-dev \
           libssl-dev autoconf pkg-config bzip2 libsystemd-dev systemd lsof \
           procps git cmake automake hunspell-en-gb hunspell-tools linux-perf \
-          clang-12 llvm-12 lld-12 libc++-12-dev lldb texinfo procps' \
+          clang-${LLVM_VERSION} llvm-${LLVM_VERSION} lld-${LLVM_VERSION} libc++-${LLVM_VERSION}-dev lldb texinfo procps" \
   && apt-get update \
   && apt-get install -y --no-install-recommends software-properties-common \
   && apt-key add /llvm-snapshot.gpg.key \
-  && add-apt-repository "deb http://apt.llvm.org/${VARIANT_VERSION}/ llvm-toolchain-${VARIANT_VERSION}-12 main" \
+  && add-apt-repository "deb http://apt.llvm.org/${VARIANT_VERSION}/ llvm-toolchain-${VARIANT_VERSION}-${LLVM_VERSION} main" \
   && apt-get update \
   && apt-get install -y --no-install-recommends $DEPS \
   && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
@@ -37,10 +44,11 @@ RUN DEPS='build-essential binutils ca-certificates curl file gcc g++ libtool \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc
 
-RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-12 100 && \
-    update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-12 100 && \
-    update-alternatives --install /usr/bin/ld.lld lld /usr/bin/ld.lld-12 100 && \
-    update-alternatives --install /usr/bin/llvm-ar llvm-ar /usr/bin/llvm-ar-12 100
+RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${LLVM_VERSION} 100 && \
+    update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${LLVM_VERSION} 100 && \
+    update-alternatives --install /usr/bin/ld.lld lld /usr/bin/ld.lld-${LLVM_VERSION} 100 && \
+    update-alternatives --install /usr/bin/llvm-ar llvm-ar /usr/bin/llvm-ar-${LLVM_VERSION} 100 && \
+    update-alternatives --install /usr/bin/llvm-ranlib llvm-ranlib /usr/bin/llvm-ranlib-${LLVM_VERSION} 100
 
 RUN free -h && df -h && cat /proc/cpuinfo
 
