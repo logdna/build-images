@@ -19,27 +19,29 @@ ENV PATH="${CARGO_HOME}/bin:${PATH}"
 COPY llvm-snapshot.gpg.key /llvm-snapshot.gpg.key
 COPY .curlrc /root
 
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US
+ENV TERM xterm
+
 # Handly lookup env vars
 ENV amd64=x86_64
 ENV arm64=aarch64
 ENV x86_64=amd64
 ENV aarch64=arm64
 
-RUN DEPS="build-essential binutils ca-certificates curl file gcc g++ libtool \
-          m4 libc6-dev make xz-utils locales libexpat1-dev gettext libz-dev \
-          libssl-dev autoconf pkg-config bzip2 libsystemd-dev systemd lsof \
-          procps git cmake automake hunspell-en-gb hunspell-tools linux-perf \
-          clang-${LLVM_VERSION} llvm-${LLVM_VERSION} lld-${LLVM_VERSION} libc++-${LLVM_VERSION}-dev lldb texinfo procps" \
+RUN DEPS="ca-certificates curl file m4 make locales pkg-config \
+          lsof procps git automake hunspell-en-gb hunspell-tools linux-perf \
+          lldb texinfo procps clang-${LLVM_VERSION} llvm-${LLVM_VERSION} \
+          lld-${LLVM_VERSION} libc++-${LLVM_VERSION}-dev" \
   && apt-get update \
-  && apt-get install -y --no-install-recommends software-properties-common \
   && apt-key add /llvm-snapshot.gpg.key \
+  && apt-get install -y --no-install-recommends software-properties-common \
   && add-apt-repository "deb http://apt.llvm.org/${VARIANT_VERSION}/ llvm-toolchain-${VARIANT_VERSION}-${LLVM_VERSION} main" \
   && apt-get update \
   && apt-get install -y --no-install-recommends $DEPS \
   && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
   && locale-gen en_US.UTF-8 \
   && /usr/sbin/update-locale LANG=en_US.UTF-8 \
-  && apt-get remove --purge autoconf libz-dev libexpat1-dev -y \
   && apt-get autoremove -y \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc
@@ -50,13 +52,7 @@ RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${LLVM_VER
     update-alternatives --install /usr/bin/llvm-ar llvm-ar /usr/bin/llvm-ar-${LLVM_VERSION} 100 && \
     update-alternatives --install /usr/bin/llvm-ranlib llvm-ranlib /usr/bin/llvm-ranlib-${LLVM_VERSION} 100
 
-RUN free -h && df -h && cat /proc/cpuinfo
-
 RUN unmunch /usr/share/hunspell/en_GB.dic /usr/share/hunspell/en_GB.aff | grep -v "'s" > /dict.txt
-
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US
-ENV TERM xterm
 
 ARG VERSION="stable"
 
