@@ -85,6 +85,7 @@ pipeline {
                 # initialize qemu
                 test -z /proc/sys/fs/binfmt_misc/ && \
                 docker run --rm --privileged multiarch/qemu-user-static --reset -p yes || \
+                ls /proc/sys/fs/binfmt_misc/ && \
                 echo "Qemu binfmts already registered"
               """
             }
