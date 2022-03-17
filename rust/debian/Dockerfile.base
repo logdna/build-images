@@ -69,24 +69,10 @@ RUN cd /tmp \
 ENV RUSTC_WRAPPER="/usr/local/bin/sccache"
 ENV CC_WRAPPER="/usr/local/bin/sccache"
 
-RUN cd /tmp \
-    && ARCH=$(uname -m) \
-    && curl -L https://api.github.com/repos/rustsec/cargo-audit/releases/latest \
-    | grep "browser_download_url" \
-    | grep -E "cargo-audit-${ARCH}-unknown-linux-musl-v.*.tgz\"$" \
-    | awk '{$1=$1;print}' \
-    | cut -f2 -d" " \
-    | xargs curl -LO \
-    && mkdir -p /tmp/cargo-audit \
-    && tar -C /tmp/cargo-audit --strip-components=1 -xf /tmp/cargo-audit-${ARCH}-unknown-linux-musl-v*.tgz \
-    && mv /tmp/cargo-audit/cargo-audit /usr/local/bin/cargo-audit \
-    && chmod +x /usr/local/bin/cargo-audit \
-    && rm -rf /tmp/*
-
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
-    cargo install flamegraph && \
+    cargo install flamegraph cargo-audit && \
     cargo install --version 0.6.3 cargo-cache && \
     cargo cache -a && \
     sccache --show-stats
