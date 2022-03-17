@@ -20,7 +20,7 @@ COPY .curlrc /root
 
 RUN env
 
-RUN DEPS='build-essential binutils ca-certificates curl file gcc g++ libtool m4 libc6-dev make xz-utils locales libexpat1-dev gettext libz-dev libssl-dev autoconf pkg-config bzip2 libsystemd-dev systemd lsof procps git cmake automake hunspell-en-gb hunspell-tools linux-perf clang-12 llvm-12 lldb texinfo procps' \
+RUN DEPS='build-essential binutils ca-certificates curl file gcc g++ libtool m4 libc6-dev make xz-utils locales libexpat1-dev gettext libz-dev libssl-dev autoconf pkg-config bzip2 libsystemd-dev systemd lsof procps git cmake automake hunspell-en-gb hunspell-tools linux-perf clang-12 llvm-12 lldb-12 texinfo procps' \
   && apt-get update \
   && apt-get install -y --no-install-recommends software-properties-common \
   && apt-key add /llvm-snapshot.gpg.key \
@@ -73,12 +73,12 @@ RUN cd /tmp \
     && ARCH=$(uname -m) \
     && curl -L https://api.github.com/repos/rustsec/cargo-audit/releases/latest \
     | grep "browser_download_url" \
-    | grep -E "cargo-audit-${ARCH}-unknown-linux-gnu-v.*.tgz\"$" \
+    | grep -E "cargo-audit-${ARCH}-unknown-linux-musl-v.*.tgz\"$" \
     | awk '{$1=$1;print}' \
     | cut -f2 -d" " \
     | xargs curl -LO \
     && mkdir -p /tmp/cargo-audit \
-    && tar -C /tmp/cargo-audit --strip-components=1 -xf /tmp/cargo-audit-${ARCH}-unknown-linux-gnu-v*.tgz \
+    && tar -C /tmp/cargo-audit --strip-components=1 -xf /tmp/cargo-audit-${ARCH}-unknown-linux-musl-v*.tgz \
     && mv /tmp/cargo-audit/cargo-audit /usr/local/bin/cargo-audit \
     && chmod +x /usr/local/bin/cargo-audit \
     && rm -rf /tmp/*
