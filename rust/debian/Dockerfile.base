@@ -20,7 +20,7 @@ COPY .curlrc /root
 
 RUN env
 
-RUN DEPS='build-essential binutils ca-certificates curl file gcc g++ libtool m4 libc6-dev make xz-utils locales libexpat1-dev gettext libz-dev libssl-dev autoconf pkg-config bzip2 libsystemd-dev systemd lsof procps git cmake automake hunspell-en-gb hunspell-tools linux-perf clang-12 llvm-12 lldb texinfo procps' \
+RUN DEPS='build-essential binutils ca-certificates curl file gcc g++ libtool m4 libc6-dev make xz-utils locales libexpat1-dev gettext libz-dev libssl-dev autoconf pkg-config bzip2 libsystemd-dev systemd lsof procps git cmake automake hunspell-en-gb hunspell-tools linux-perf clang-12 llvm-12 lldb-12 texinfo procps' \
   && apt-get update \
   && apt-get install -y --no-install-recommends software-properties-common \
   && apt-key add /llvm-snapshot.gpg.key \
@@ -47,14 +47,14 @@ ARG VERSION="stable"
 
 # Install rust
 ENV CARGO_HOME=/opt/rust/cargo
-RUN curl https://sh.rustup.rs -sSf | \
+RUN curl -L https://sh.rustup.rs -sSf | \
     sh -s -- -y --default-toolchain $VERSION --component clippy rustfmt --profile minimal --no-modify-path && \
     chmod -R a+rw $RUSTUP_HOME $CARGO_HOME
 
 # Install sccache
 RUN cd /tmp \
     && ARCH=$(uname -m) \
-    && curl https://api.github.com/repos/mozilla/sccache/releases/latest \
+    && curl -L https://api.github.com/repos/mozilla/sccache/releases/latest \
     | grep "browser_download_url" \
     | grep -E "sccache-v.*${ARCH}-unknown-linux-musl.tar.gz\"$" \
     | awk '{$1=$1;print}' \
@@ -72,7 +72,7 @@ ENV CC_WRAPPER="/usr/local/bin/sccache"
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
-    cargo install cargo-audit flamegraph && \
+    cargo install flamegraph cargo-audit && \
     cargo install --version 0.6.3 cargo-cache && \
     cargo cache -a && \
     sccache --show-stats

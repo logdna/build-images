@@ -16,6 +16,10 @@ pipeline {
     SCCACHE_BUCKET='logdna-sccache-us-west-2'
     SCCACHE_REGION='us-west-2'
   }
+  parameters {
+    booleanParam(name: 'PUBLISH_GCR_IMAGE', description: 'Publish docker image to Google Container Registry (GCR)', defaultValue: false)
+    booleanParam(name: 'PUBLISH_DOCKER_IMAGE', description: 'Publish docker image to Dockerhub', defaultValue: false)
+  }
   stages {
     stage('Validate PR Source') {
       when {
@@ -29,7 +33,7 @@ pipeline {
       }
     }
 
-    stage('Build Rust Variant Images') {
+    stage('Build base images for each supported build host platform') {
       matrix {
         axes {
           axis {
@@ -40,36 +44,12 @@ pipeline {
             name 'VARIANT_VERSION'
             values 'buster', 'bullseye'
           }
-          axis {
-            name 'ARCH'
-            values 'x86_64', 'aarch64'
-          }
+          // Host architecture of the built image
           axis {
             name 'PLATFORM'
+            // Support for x86_64 and arm64 for Mac M1s/AWS graviton devs/builders
             values 'linux/amd64', 'linux/arm64'
           }
-        }
-        excludes {
-            exclude {
-                axis {
-                    name 'ARCH'
-                    values 'x86_64'
-                }
-                axis {
-                    name 'PLATFORM'
-                    values 'linux/arm64'
-                }
-            }
-            exclude {
-                axis {
-                    name 'ARCH'
-                    values 'aarch64'
-                }
-                axis {
-                    name 'PLATFORM'
-                    values 'linux/amd64'
-                }
-            }
         }
         agent {
           node {
@@ -88,7 +68,7 @@ pipeline {
               """
             }
           }
-          stage('Build') {
+          stage('Build platform specific base') {
             steps {
                 withCredentials([[
                     $class: 'AmazonWebServicesCredentialsBinding',
@@ -107,7 +87,7 @@ pipeline {
                           , variant_base: "debian"
                           , variant_version: "${VARIANT_VERSION}"
                           , version: "${RUSTC_VERSION}"
-                          , image_suffix: "base-${ARCH}"
+                          , image_suffix: "base-${PLATFORM.replaceAll('/','-')}"
                         )
 
                         buildImage(
@@ -115,7 +95,6 @@ pipeline {
                           , variant_base: "debian"
                           , variant_version: "${VARIANT_VERSION}"
                           , version: "${RUSTC_VERSION}"
-                          , arch: "${ARCH}"
                           , platform: "${PLATFORM}"
                           , dockerfile: "Dockerfile.base"
                           , image_name: image_name
@@ -135,7 +114,9 @@ pipeline {
         } // End Build Rust Images stages
       } // End matrix
     } // End Build Rust Images stage
-    stage('Build Rust Arch specific Images') {
+    // Build the images containing the cross compilers targeting actual
+    // distribution platforms
+    stage('Build CROSS_COMPILER_TARGET_ARCH Specific images on top of PLATFORMs base image') {
       matrix {
         axes {
           axis {
@@ -146,36 +127,16 @@ pipeline {
             name 'VARIANT_VERSION'
             values 'buster', 'bullseye'
           }
+          // Target ISA for musl cross comp toolchain and precompiled libs
           axis {
-            name 'ARCH'
+            name 'CROSS_COMPILER_TARGET_ARCH'
             values 'x86_64', 'aarch64'
           }
+          // Host architecture of the built image
           axis {
             name 'PLATFORM'
             values 'linux/amd64', 'linux/arm64'
           }
-        }
-        excludes {
-            exclude {
-                axis {
-                    name 'ARCH'
-                    values 'x86_64'
-                }
-                axis {
-                    name 'PLATFORM'
-                    values 'linux/arm64'
-                }
-            }
-            exclude {
-                axis {
-                    name 'ARCH'
-                    values 'aarch64'
-                }
-                axis {
-                    name 'PLATFORM'
-                    values 'linux/amd64'
-                }
-            }
         }
         agent {
           node {
@@ -194,7 +155,7 @@ pipeline {
               """
             }
           }
-          stage('Build') {
+          stage('Build cross compilation image') {
             steps {
                 withCredentials([[
                     $class: 'AmazonWebServicesCredentialsBinding',
@@ -213,14 +174,14 @@ pipeline {
                         , variant_base: "debian"
                         , variant_version: "${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
-                        , image_suffix: "${ARCH}"
+                        , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
                       )
                       def base_name = generateImageName(
                         name: "rust"
                         , variant_base: "debian"
                         , variant_version: "${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
-                        , image_suffix: "base-${ARCH}"
+                        , image_suffix: "base-${PLATFORM.replaceAll('/','-')}"
                       )
                       // GCR image
                       buildImage(
@@ -228,12 +189,14 @@ pipeline {
                         , variant_base: "debian"
                         , variant_version: "${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
-                        , arch: "${ARCH}"
+                        , cross_compiler_target_arch: "${CROSS_COMPILER_TARGET_ARCH}"
                         , platform: "${PLATFORM}"
                         , dockerfile: "Dockerfile"
                         , image_name: image_name
                         , base_name: base_name
                         , pull: true
+                        , push: (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" || params.PUBLISH_GCR_IMAGE == true)
+                        , clean: false
                       )
                       def docker_name = generateImageName(
                         repo_base: "docker.io/logdna",
@@ -241,7 +204,7 @@ pipeline {
                         , variant_base: "rust"
                         , variant_version: "rust-${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
-                        , image_suffix: "${ARCH}"
+                        , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
                       )
                       // Dockerhub image
                       docker.withRegistry(
@@ -253,12 +216,12 @@ pipeline {
                                 , variant_base: "debian"
                                 , variant_version: "${VARIANT_VERSION}"
                                 , version: "${RUSTC_VERSION}"
-                                , arch: "${ARCH}"
+                                , cross_compiler_target_arch: "${CROSS_COMPILER_TARGET_ARCH}"
                                 , platform: "${PLATFORM}"
                                 , dockerfile: "Dockerfile"
                                 , image_name: docker_name
                                 , base_name: base_name
-                                , clean: false
+                                , push: (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" || params.PUBLISH_DOCKER_IMAGE == true)
                             )
                       }
                       try {
@@ -280,27 +243,131 @@ pipeline {
         } // End Build Rust Images stages
       }
     }
+    stage('Create Multi-Arch Manifests/Images') {
+      matrix {
+        axes {
+          axis {
+            name 'RUSTC_VERSION'
+            values 'stable', 'beta'
+          }
+          axis {
+            name 'VARIANT_VERSION'
+            values 'buster', 'bullseye'
+          }
+          // Target ISA for musl cross comp toolchain and precompiled libs
+          axis {
+            name 'CROSS_COMPILER_TARGET_ARCH'
+            values 'x86_64', 'aarch64'
+          }
+        }
+        agent {
+          node {
+            label 'ec2-fleet'
+            customWorkspace "docker-images-${BUILD_NUMBER}"
+          }
+        }
+        stages {
+          stage ('Create GCR Multi Arch Manifest') {
+            when {
+                expression { return ((env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) || params.PUBLISH_GCR_IMAGE == true) }
+            }
+            steps {
+              script {
+                def gcr_manifest_name = createMultiArchImageManifest(
+                    name: "rust"
+                    , variant_base: "debian"
+                    , variant_version: "${VARIANT_VERSION}"
+                    , version: "${RUSTC_VERSION}"
+                    , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}"
+                    )
+                // Push GCR image
+                sh("docker manifest push ${gcr_manifest_name}")
+
+                // If we're on main then also update the untagged version
+                if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) {
+                    gcr_manifest_name = createMultiArchImageManifest(
+                        name: "rust"
+                        , variant_base: "debian"
+                        , variant_version: "${VARIANT_VERSION}"
+                        , version: "${RUSTC_VERSION}"
+                        , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}"
+                        , append_git_sha: false
+                        )
+                    sh("docker manifest push ${gcr_manifest_name}")
+                }
+              }
+            }
+          }
+          stage ('Create Docker Hub Multi Arch Manifest') {
+            when {
+                expression { return ((env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) || params.PUBLISH_DOCKER_IMAGE == true) }
+            }
+            steps {
+              script {
+                // Dockerhub image
+                docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-username-password') {
+                  def docker_manifest_name = createMultiArchImageManifest(
+                      repo_base: "docker.io/logdna",
+                      , name: "build-images"
+                      , variant_base: "rust"
+                      , variant_version: "rust-${VARIANT_VERSION}"
+                      , version: "${RUSTC_VERSION}"
+                      , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}"
+                      )
+                  // Push Dockerhub image
+                  sh("docker manifest push ${docker_manifest_name}")
+
+                  // If we're on main then also update the untagged version
+                  if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) {
+                    docker_manifest_name = createMultiArchImageManifest(
+                        repo_base: "docker.io/logdna",
+                        , name: "build-images"
+                        , variant_base: "rust"
+                        , variant_version: "rust-${VARIANT_VERSION}"
+                        , version: "${RUSTC_VERSION}"
+                        , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}"
+                        , append_git_sha: false
+                        )
+                    // Push GCR image
+                    sh("docker manifest push ${docker_manifest_name}")
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }
 
 def generateImageName(Map config = [:]){
-  String repo_base = "us.gcr.io/logdna-k8s"
   assert config.name : "Missing config.name"
   assert config.variant_base : "Missing config.variant_base"
   assert config.variant_version : "Missing config.variant_version"
   assert config.version : "Missing config.version"
 
-  if (config.repo_base) {
-    repo_base = config.repo_base
-  }
+  def repo_base = config.get("repo_base", "us.gcr.io/logdna-k8s")
+  def append_git_sha = config.get("append_git_sha", true)
+
+  def name = ""
 
   if (config.image_suffix) {
-    return "${repo_base}/${config.name}:${config.variant_version}-1-${config.version}-${config.image_suffix}"
+    name = "${repo_base}/${config.name}:${config.variant_version}-1-${config.version}-${config.image_suffix}"
   } else {
-    return "${repo_base}/${config.name}:${config.variant_version}-1-${config.version}"
+    name = "${repo_base}/${config.name}:${config.variant_version}-1-${config.version}"
+  }
+
+  // If config.append_git_sha is set to append it so that the image is unique
+  if (append_git_sha) {
+    def git_sha = env.GIT_COMMIT
+    return "${name}-${git_sha.substring(0, Math.min(git_sha.length(), 16))}"
+  } else {
+    return name
   }
 }
 
+// Build and optionally push image
 def buildImage(Map config = [:]) {
   assert config.name : "Missing config.name"
   assert config.variant_base : "Missing config.variant_base"
@@ -310,8 +377,7 @@ def buildImage(Map config = [:]) {
   // PR jobs have CHANGE_BRANCH set correctly
   // branch jobs have BRANCH_NAME set correctly
   // Neither are consistent, so we have to do this :[]
-  def shouldPush =  ((env.CHANGE_BRANCH || env.BRANCH_NAME) == "main" || config.push)
-
+  def shouldPush =  config.get("push", false)
   def directory = "${config.name}/${config.variant_base}"
 
   List<String> buildArgs = [
@@ -345,9 +411,9 @@ def buildImage(Map config = [:]) {
     buildArgs.push([directory, config.dockerfile].join("/"))
   }
 
-  if (config.arch) {
+  if (config.cross_compiler_target_arch) {
     buildArgs.push("--build-arg")
-    buildArgs.push(["ARCH", config.arch].join("="))
+    buildArgs.push(["CROSS_COMPILER_TARGET_ARCH", config.cross_compiler_target_arch].join("="))
   }
 
   if (config.platform) {
@@ -377,4 +443,45 @@ def buildImage(Map config = [:]) {
   }
 
   return image
+}
+
+// Create a multiarch image manifest and push it
+def createMultiArchImageManifest(Map config = [:]){
+  assert config.name : "Missing config.name"
+  assert config.variant_base : "Missing config.variant_base"
+  assert config.variant_version : "Missing config.variant_version"
+  assert config.version : "Missing config.version"
+
+  def repo_base = config.get("repo_base", "us.gcr.io/logdna-k8s")
+  def append_git_sha = config.get("append_git_sha", true)
+
+  def manifest_name = generateImageName(
+      repo_base: repo_base
+      , name: config.name
+      , variant_base: config.variant_base
+      , variant_version: config.variant_version
+      , version: config.version
+      , image_suffix: config.image_suffix
+      , append_git_sha: append_git_sha
+      )
+  def amd64_image_name = generateImageName(
+      repo_base: repo_base
+      , name: config.name
+      , variant_base: config.variant_base
+      , variant_version: config.variant_version
+      , version: config.version
+      , image_suffix: "${config.image_suffix}-linux-amd64"
+      , append_git_sha: append_git_sha
+      )
+  def arm64_image_name = generateImageName(
+      repo_base: repo_base
+      , name: config.name
+      , variant_base: config.variant_base
+      , variant_version: config.variant_version
+      , version: config.version
+      , image_suffix: "${config.image_suffix}-linux-arm64"
+      , append_git_sha: append_git_sha
+      )
+  sh("docker manifest create ${manifest_name} --amend ${arm64_image_name} --amend ${amd64_image_name}")
+  return manifest_name
 }
