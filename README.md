@@ -18,8 +18,8 @@ revision. On main an additional tag without the trailing sha is also pushed
 >  ./scripts/mk.debian
   * build local debian image
   * default variant: VARIANT_VERSION=**Buster**
-  * default platform: PLATFORM=**linux/arm64**
-  * default architecture:  ARCH=**aarch64**
+  * default platform: host arch
+  * default cross compiler target architecture: aarch64 and x86_64
 > ./scripts/mk.debian.rebuild
   * same as mk.debian plus pull new base and ignore docker build cache
 
