@@ -192,6 +192,7 @@ pipeline {
                             , variant_version: "${VARIANT_VERSION}"
                             , version: "${RUSTC_VERSION}"
                             , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
+                            , append_git_sha: false
                           ))
                       }
                       buildImage(
@@ -226,6 +227,7 @@ pipeline {
                             , variant_version: "rust-${VARIANT_VERSION}"
                             , version: "${RUSTC_VERSION}"
                             , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
+                            , append_git_sha: false
                           ))
                       }
 
@@ -403,6 +405,7 @@ def generateImageName(Map config = [:]){
                 , variant_version: config.variant_version
                 , version: config.version
                 , image_suffix: config.get("image_suffix", null)
+                , append_git_sha: append_git_sha
             )
 
   return "${repo_base}/${config.name}:${tag}"
