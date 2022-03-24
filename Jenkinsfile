@@ -58,16 +58,6 @@ pipeline {
           }
         }
         stages {
-          stage('Initilize qemu') {
-            steps {
-              sh """
-                free -h && df -h
-                cat /proc/cpuinfo
-                # initialize qemu
-                docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-              """
-            }
-          }
           stage('Build platform specific base') {
             steps {
                 withCredentials([[
@@ -195,16 +185,6 @@ pipeline {
           }
         }
         stages {
-          stage('Initilize qemu') {
-            steps {
-              sh """
-                free -h && df -h
-                cat /proc/cpuinfo
-                # initialize qemu
-                docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-              """
-            }
-          }
           stage('Build cross compilation image') {
             steps {
                 withCredentials([[
