@@ -10,7 +10,8 @@ ARG SCCACHE_ENDPOINT
 ARG SCCACHE_SERVER_PORT=4226
 ARG SCCACHE_RECACHE
 
-ENV LLVM_VERSION=13
+ENV LLVM_MAJOR_VERSION=13
+ENV LLVM_VERSION=${LLVM_MAJOR_VERSION}.0.1
 ENV VARIANT_VERSION=${VARIANT_VERSION}
 
 ENV CARGO_HOME="/opt/rust/cargo"
@@ -29,14 +30,14 @@ ENV arm64=aarch64
 ENV x86_64=amd64
 ENV aarch64=arm64
 
-RUN DEPS="ca-certificates curl file m4 make locales pkg-config \
+RUN DEPS="ca-certificates curl file m4 make locales pkg-config xz-utils cmake \
           lsof procps git automake hunspell-en-gb hunspell-tools linux-perf \
-          lldb texinfo procps clang-${LLVM_VERSION} llvm-${LLVM_VERSION} \
-          lld-${LLVM_VERSION} libc++-${LLVM_VERSION}-dev" \
+          texinfo procps zlib1g-dev clang-${LLVM_MAJOR_VERSION} llvm-${LLVM_MAJOR_VERSION} \
+          lld-${LLVM_MAJOR_VERSION} libc++-${LLVM_MAJOR_VERSION}-dev lldb-${LLVM_MAJOR_VERSION}" \
   && apt-get update \
   && apt-key add /llvm-snapshot.gpg.key \
   && apt-get install -y --no-install-recommends software-properties-common \
-  && add-apt-repository "deb http://apt.llvm.org/${VARIANT_VERSION}/ llvm-toolchain-${VARIANT_VERSION}-${LLVM_VERSION} main" \
+  && add-apt-repository "deb http://apt.llvm.org/${VARIANT_VERSION}/ llvm-toolchain-${VARIANT_VERSION}-${LLVM_MAJOR_VERSION} main" \
   && apt-get update \
   && apt-get install -y --no-install-recommends $DEPS \
   && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
@@ -46,11 +47,12 @@ RUN DEPS="ca-certificates curl file m4 make locales pkg-config \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc
 
-RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${LLVM_VERSION} 100 && \
-    update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${LLVM_VERSION} 100 && \
-    update-alternatives --install /usr/bin/ld.lld lld /usr/bin/ld.lld-${LLVM_VERSION} 100 && \
-    update-alternatives --install /usr/bin/llvm-ar llvm-ar /usr/bin/llvm-ar-${LLVM_VERSION} 100 && \
-    update-alternatives --install /usr/bin/llvm-ranlib llvm-ranlib /usr/bin/llvm-ranlib-${LLVM_VERSION} 100
+RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${LLVM_MAJOR_VERSION} 100 && \
+    update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${LLVM_MAJOR_VERSION} 100 && \
+    update-alternatives --install /usr/bin/ld.lld lld /usr/bin/ld.lld-${LLVM_MAJOR_VERSION} 100 && \
+    update-alternatives --install /usr/bin/llvm-ar llvm-ar /usr/bin/llvm-ar-${LLVM_MAJOR_VERSION} 100 && \
+    update-alternatives --install /usr/bin/llvm-ranlib llvm-ranlib /usr/bin/llvm-ranlib-${LLVM_MAJOR_VERSION} 100 && \
+    update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-${LLVM_MAJOR_VERSION} 100
 
 RUN unmunch /usr/share/hunspell/en_GB.dic /usr/share/hunspell/en_GB.aff | grep -v "'s" > /dict.txt
 
@@ -87,5 +89,26 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     cargo install --version 0.6.3 cargo-cache && \
     cargo cache -a && \
     sccache --show-stats
+
+## Set up default cargo env vars for cross compiling
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=clang
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_AR=llvm-ar
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C link-args=-fuse-ld=lld -C link-args=--target=aarch64-unknown-linux-gnu"
+
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_AR=llvm-ar
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C link-args=-fuse-ld=lld -C link-args=--target=x86_64-unknown-linux-gnu"
+
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=clang
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_AR=llvm-ar
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="-C link-args=-fuse-ld=lld -C link-args=--target=aarch64-unknown-linux-musl"
+ENV CC_aarch64_unknown_linux_musl=clang
+ENV CFLAGS_aarch64_unknown_linux_musl="-isystem /usr/include/aarch64-linux-musl"
+
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=clang
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_AR=llvm-ar
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="-Clink-args=-fuse-ld=lld -Clink-args=--target=x86_64-unknown-linux-musl"
+ENV CC_x86_64_unknown_linux_musl=clang
+ENV CFLAGS_x86_64_unknown_linux_musl="-isystem /usr/include/x86_64-linux-musl"
 
 CMD ["bash"]
