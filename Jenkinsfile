@@ -192,8 +192,7 @@ pipeline {
                             , variant_version: "${VARIANT_VERSION}"
                             , version: "${RUSTC_VERSION}"
                             , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
-                          )
-                        )
+                          ))
                       }
                       buildImage(
                         name: "rust"
@@ -227,8 +226,7 @@ pipeline {
                             , variant_version: "rust-${VARIANT_VERSION}"
                             , version: "${RUSTC_VERSION}"
                             , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
-                          )
-                        )
+                          ))
                       }
 
                       // Dockerhub image
@@ -295,7 +293,7 @@ pipeline {
         stages {
           stage ('Create GCR Multi Arch Manifest') {
             when {
-                expression { return ((env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) || params.PUBLISH_GCR_IMAGE == true) }
+                expression { return ((env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || env.BRANCH_NAME == "fixup-unshad-manifests") || params.PUBLISH_GCR_IMAGE == true) }
             }
             steps {
               script {
@@ -310,7 +308,7 @@ pipeline {
                 sh("docker manifest push --purge ${gcr_manifest_name}")
 
                 // If we're on main then also update the untagged version
-                if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) {
+                if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || env.BRANCH_NAME == "fixup-unshad-manifests") {
                     gcr_manifest_name = createMultiArchImageManifest(
                         name: "rust"
                         , variant_base: "debian"
@@ -326,7 +324,7 @@ pipeline {
           }
           stage ('Create Docker Hub Multi Arch Manifest') {
             when {
-                expression { return ((env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) || params.PUBLISH_DOCKER_IMAGE == true) }
+                expression { return ((env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || env.BRANCH_NAME == "fixup-unshad-manifests") || params.PUBLISH_DOCKER_IMAGE == true) }
             }
             steps {
               script {
@@ -344,7 +342,7 @@ pipeline {
                   sh("docker manifest push --purge ${docker_manifest_name}")
 
                   // If we're on main then also update the untagged version
-                  if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) {
+                  if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || env.BRANCH_NAME == "fixup-unshad-manifests") {
                     docker_manifest_name = createMultiArchImageManifest(
                         repo_base: "docker.io/logdna",
                         , name: "build-images"
