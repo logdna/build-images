@@ -120,7 +120,7 @@ pipeline {
       matrix {
         agent {
           node {
-            label "ec2-fleet"
+            label "rust-x86_64"
             customWorkspace "docker-images-${BUILD_NUMBER}"
           }
         }
@@ -323,7 +323,7 @@ pipeline {
       matrix {
         agent {
           node {
-            label 'ec2-fleet'
+            label 'rust-x86_64'
             customWorkspace "docker-images-${BUILD_NUMBER}"
           }
         }
