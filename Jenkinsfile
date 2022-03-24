@@ -184,6 +184,16 @@ pipeline {
                         , image_suffix: "base-${PLATFORM.replaceAll('/','-')}"
                       )
                       // GCR image
+                      def additional_gcr_tags = []
+                      if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) {
+                        additional_gcr_tags.push(generateImageName(
+                          name: "rust"
+                          , variant_base: "debian"
+                          , variant_version: "${VARIANT_VERSION}"
+                          , version: "${RUSTC_VERSION}"
+                          , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
+                        ))
+                      }
                       buildImage(
                         name: "rust"
                         , variant_base: "debian"
@@ -195,7 +205,8 @@ pipeline {
                         , image_name: image_name
                         , base_name: base_name
                         , pull: true
-                        , push: (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" || params.PUBLISH_GCR_IMAGE == true)
+                        , push: (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  ||  params.PUBLISH_GCR_IMAGE == true)
+                        , additional_tags: additional_gcr_tags
                         , clean: false
                       )
                       def docker_name = generateImageName(
@@ -206,6 +217,19 @@ pipeline {
                         , version: "${RUSTC_VERSION}"
                         , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
                       )
+
+                      def additional_dockerhub_tags = []
+                      if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) {
+                        additional_dockerhub_tags.push(generateImageName(
+                          repo_base: "docker.io/logdna",
+                          , name: "build-images"
+                          , variant_base: "rust"
+                          , variant_version: "rust-${VARIANT_VERSION}"
+                          , version: "${RUSTC_VERSION}"
+                          , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
+                        ))
+                      }
+
                       // Dockerhub image
                       docker.withRegistry(
                                 'https://index.docker.io/v1/',
@@ -221,7 +245,8 @@ pipeline {
                                 , dockerfile: "Dockerfile"
                                 , image_name: docker_name
                                 , base_name: base_name
-                                , push: (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" || params.PUBLISH_DOCKER_IMAGE == true)
+                                , push: (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || params.PUBLISH_DOCKER_IMAGE == true)
+                                , additional_tags: additional_dockerhub_tags
                             )
                       }
                       try {
@@ -379,6 +404,7 @@ def buildImage(Map config = [:]) {
   // Neither are consistent, so we have to do this :[]
   def shouldPush =  config.get("push", false)
   def directory = "${config.name}/${config.variant_base}"
+  def additionalTags = config.get("additional_tags", [])
 
   List<String> buildArgs = [
     "--progress"
@@ -436,6 +462,9 @@ def buildImage(Map config = [:]) {
 
   if (shouldPush) {
     image.push()
+    for (tag in additionalTags) {
+        image.push(tag)
+    }
   }
 
   if (config.clean) {
