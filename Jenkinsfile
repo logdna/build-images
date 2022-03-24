@@ -106,56 +106,6 @@ pipeline {
     } // End Build Rust Images stage
     // Build the images containing the cross compilers targeting actual
     // distribution platforms
-    stage('Create Multi-Arch Manifests/Images for Base') {
-      matrix {
-        agent {
-          node {
-            label "rust-x86_64"
-            customWorkspace "docker-images-${BUILD_NUMBER}"
-          }
-        }
-        axes {
-          axis {
-            name 'RUSTC_VERSION'
-            values 'stable', 'beta'
-          }
-          axis {
-            name 'VARIANT_VERSION'
-            values 'buster', 'bullseye'
-          }
-        }
-
-        stages {
-          stage ('Create GCR Multi Arch Manifest') {
-            steps {
-              script {
-                def gcr_manifest_name = createMultiArchImageManifest(
-                    name: "rust"
-                    , variant_base: "debian"
-                    , variant_version: "${VARIANT_VERSION}"
-                    , version: "${RUSTC_VERSION}"
-                    , image_suffix: "base"
-                    )
-                // GCR image
-                sh("docker manifest push ${gcr_manifest_name}")
-                // If we're on main then also update the untagged version
-                if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) {
-                    gcr_manifest_name = createMultiArchImageManifest(
-                        name: "rust"
-                        , variant_base: "debian"
-                        , variant_version: "${VARIANT_VERSION}"
-                        , version: "${RUSTC_VERSION}"
-                        , image_suffix: "base"
-                        , append_git_sha: false
-                        )
-                    sh("docker manifest push ${gcr_manifest_name}")
-                }
-              }
-            }
-          }
-        }
-      }
-    }
     stage('Build CROSS_COMPILER_TARGET_ARCH Specific images on top of PLATFORMs base image') {
       matrix {
         agent {
