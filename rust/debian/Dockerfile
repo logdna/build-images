@@ -77,42 +77,52 @@ RUN set -x \
     && mkdir -p /tmp/llvm-project/ \
     && tar -C /tmp/llvm-project/ --strip-components=1 -xf llvm-project-${LLVM_VERSION}.src.tar.xz
 
+ENV CMAKE_COMMAND="cmake --parallel=$(nproc)"
 ENV CMAKE_TARGET=${CROSS_COMPILER_TARGET_ARCH}-linux-musl
-ENV CMAKE_ARGS="-DCMAKE_ASM_COMPILER_TARGET=${CMAKE_TARGET} -DCMAKE_C_COMPILER_TARGET=${CMAKE_TARGET} -DCMAKE_AR=/usr/bin/llvm-ar -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_INSTALL_PREFIX=${SYSROOT}/usr -DCMAKE_SYSTEM_NAME=Linux -DLLVM_DEFAULT_TARGET_TRIPLE=${CROSS_COMPILER_TARGET_ARCH}-linux-musl -DCMAKE_NM=/usr/bin/llvm-nm -DCMAKE_RANLIB=/usr/bin/llvm-ranlib -DLLVM_CONFIG_PATH=/usr/bin/llvm-config-${LLVM_MAJOR_VERSION}"
-ENV CMAKE_SHARED_FLAGS="--target=${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl -isystem ${SYSROOT}/usr/${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl/include/ -isystem ${SYSROOT}/usr/include/"
-ENV CMAKE_C_FLAGS="--target=${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl -fuse-ld=lld -nostdinc -nodefaultlibs -nostdlib ${CMAKE_SHARED_FLAGS} -L ${SYSROOT}/usr/${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl/lib -lc -B${SYSROOT}/usr/${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl/lib/"
-ENV CMAKE_CXX_FLAGS="--target=${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl -fuse-ld=lld -nostdinc -nostdinc++ -nodefaultlibs -nostdlib ${CMAKE_SHARED_FLAGS} --stdlib=libc++ --rtlib=compiler-rt -L ${SYSROOT}/usr/${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl/lib -lc"
+ENV CMAKE_HOST_ARGS="-DCMAKE_INSTALL_PREFIX=${SYSROOT}/usr -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=lld"
+ENV CMAKE_HOST="$CMAKE_COMMAND $CMAKE_HOST_ARGS"
+ENV CMAKE_PROGRAMS="-DCMAKE_AR=/usr/bin/llvm-ar -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_NM=/usr/bin/llvm-nm -DCMAKE_RANLIB=/usr/bin/llvm-ranlib -DLLVM_CONFIG_PATH=/usr/bin/llvm-config"
+ENV CMAKE_CROSS_ARGS="${CMAKE_PROGRAMS} ${CMAKE_HOST_ARGS} -DCMAKE_INSTALL_PREFIX=${SYSROOT}/usr ${CMAKE_HOST_ARGS} -DCMAKE_CROSSCOMPILING=1 -DCMAKE_ASM_COMPILER_TARGET=${CMAKE_TARGET} -DCMAKE_C_COMPILER_TARGET=${CMAKE_TARGET} -DCMAKE_CXX_COMPILER_TARGET=${CMAKE_TARGET} -DLLVM_DEFAULT_TARGET_TRIPLE=${CMAKE_TARGET} -DCMAKE_C_COMPILER_WORKS=TRUE -DCMAKE_CXX_COMPILER_WORKS=TRUE"
+ENV CMAKE_SHARED_FLAGS="--gcc-toolchain=${SYSROOT}/usr/${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl -fuse-ld=lld -nostdinc -nodefaultlibs -nostdlib -isystem ${SYSROOT}/usr/${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl/include/ -isystem ${SYSROOT}/usr/include/"
+ENV CMAKE_C_FLAGS="${CMAKE_SHARED_FLAGS} -B${SYSROOT}/usr/${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl/lib/"
+ENV CMAKE_CXX_FLAGS="-nostdinc++ ${CMAKE_SHARED_FLAGS} --stdlib=libc++ --rtlib=compiler-rt"
+ENV CMAKE_CROSS="$CMAKE_COMMAND $CMAKE_CROSS_ARGS"
 
+RUN cmake --version
+
+# Install sysroot clang headers
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
     export REPOS=/tmp/llvm-project && \
-    TARGET=${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl; \
     cd $REPOS/llvm && mkdir build && cd build && \
-    cmake -DCMAKE_INSTALL_PREFIX=${SYSROOT}/usr -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_SYSTEM_NAME=Linux -DLLVM_ENABLE_DOXYGEN=OFF -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" .. && \
+    $CMAKE_HOST -DLLVM_ENABLE_DOXYGEN=OFF .. && \
     cd $REPOS/clang && mkdir build && cd build && \
-    cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -DCMAKE_INSTALL_PREFIX=${SYSROOT}/usr -DCMAKE_MODULE_PATH="$REPOS/llvm/build/cmake/modules/CMakeFiles;$REPOS/llvm/build/lib/cmake/llvm/" -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=TRUE -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" -DLLVM_ENABLE_LIBCXX:BOOL=ON -DCMAKE_INSTALL_PREFIX=${SYSROOT}/usr -DLLVM_PATH="$REPOS/llvm" -DLLVM_DIR="$REPOS/llvm" .. && \
+    $CMAKE_HOST -DCMAKE_MODULE_PATH="$REPOS/llvm/build/cmake/modules/CMakeFiles;$REPOS/llvm/build/lib/cmake/llvm/" -DLLVM_ENABLE_LIBCXX:BOOL=ON -DLLVM_DIR="$REPOS/llvm" .. && \
     make -j $(nproc) install-clang-resource-headers
 
+# Generate and install sysroot libc++ headers
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
     export REPOS=/tmp/llvm-project && \
     TARGET=${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl; \
     cd $REPOS/clang && cd build && \
-    cd $REPOS/libcxx && mkdir build && cd build && cmake --parallel=$(nproc) $CMAKE_ARGS -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" -DLIBCXX_LINK_FLAGS=-fuse-ld=lld -DLIBCXX_GCC_TOOLCHAIN=$SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH} -DLIBCXX_HAS_MUSL_LIBC=1 -DLIBCXX_HAS_GCC_S_LIB=0 -DLIBCXX_CXX_ABI=libcxxabi -DLIBCXX_CXX_ABI_INCLUDE_PATHS="$REPOS/libcxxabi/include" -DLIBCXX_CXX_ABI_LIBRARY_PATH="$REPOS/libcxxabi/build/lib" -DLLVM_PATH="$REPOS/llvm" -DCMAKE_C_COMPILER_WORKS=TRUE -DCMAKE_CXX_COMPILER_WORKS=TRUE .. && \
+    cd $REPOS/libcxx && mkdir build && cd build && \
+    $CMAKE_CROSS -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" -DLIBCXX_LINK_FLAGS=-fuse-ld=lld -DLIBCXX_GCC_TOOLCHAIN=$SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH} -DLIBCXX_HAS_MUSL_LIBC=1 -DLIBCXX_HAS_GCC_S_LIB=0 -DLIBCXX_CXX_ABI=libcxxabi -DLIBCXX_CXX_ABI_INCLUDE_PATHS="$REPOS/libcxxabi/include" -DLIBCXX_CXX_ABI_LIBRARY_PATH="$REPOS/libcxxabi/build/lib" -DLLVM_PATH="$REPOS/llvm" .. && \
     make -j $(nproc) cxx_abi_headers generate-cxx-headers install-cxx-headers
 
+# Build and install sysroot compiler-rt
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
     export REPOS=/tmp/llvm-project && \
     TARGET=${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl; \
     cd $REPOS/compiler-rt && mkdir build && cd build && \
-    cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON $CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${SYSROOT}/usr -DCMAKE_C_COMPILER=clang -DCMAKE_C_FLAGS="--verbose --gcc-toolchain=${SYSROOT}/usr/${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl -fuse-ld=lld -nostdinc -nodefaultlibs -nostdlib ${CMAKE_SHARED_FLAGS}" -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_FLAGS="--verbose --gcc-toolchain=${SYSROOT}/usr/${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl -fuse-ld=lld -nostdinc -nostdinc++ -nodefaultlibs -nostdlib ${CMAKE_SHARED_FLAGS} --rtlib=compiler-rt" -DCMAKE_C_COMPILER_WORKS=TRUE -DCMAKE_CXX_COMPILER_WORKS=TRUE -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_C_COMPILER_TARGET="$TARGET" -DCMAKE_CXX_COMPILER_TARGET="$TARGET" -DCMAKE_ASM_COMPILER_TARGET="$TARGET" -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" -DCOMPILER_RT_BUILD_BUILTINS=ON -DCOMPILER_RT_BUILD_LIBFUZZER=OFF -DCOMPILER_RT_BUILD_MEMPROF=OFF -DCOMPILER_RT_BUILD_PROFILE=OFF -DCOMPILER_RT_BUILD_SANITIZERS=OFF -DCOMPILER_RT_BUILD_XRAY=OFF -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON -DLLVM_PATH="$REPOS/llvm" .. && \
+    $CMAKE_CROSS -DCMAKE_C_FLAGS="${CMAKE_C_FLAGS}" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCOMPILER_RT_BUILD_BUILTINS=ON -DCOMPILER_RT_BUILD_LIBFUZZER=OFF -DCOMPILER_RT_BUILD_MEMPROF=OFF -DCOMPILER_RT_BUILD_PROFILE=OFF -DCOMPILER_RT_BUILD_SANITIZERS=OFF -DCOMPILER_RT_BUILD_XRAY=OFF -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON -DLLVM_PATH="$REPOS/llvm" .. && \
     make -j $(nproc) install-builtins
 
-# Finish musl build
+# Finish musl libc build and install
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     cd /tmp/musl-$MUSL_VERSION && \
     make -j $(nproc) && make install
@@ -125,12 +135,13 @@ ENV CC_${CROSS_COMPILER_TARGET_ARCH}_unknown_linux_musl=${CROSS_COMPILER_TARGET_
     CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-musl-gcc \
     CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=x86_64-linux-musl-gcc
 
+# Finish libc++ build and install
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     export REPOS=/tmp/llvm-project && \
     TARGET=${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl; \
-    cd $REPOS/libunwind && mkdir build && cd build && cmake --parallel=$(nproc) $CMAKE_ARGS -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" -DLIBUNWIND_LINK_FLAGS=-fuse-ld=lld -DCMAKE_SYSROOT=${SYSROOT} -DCMAKE_CROSSCOMPILING=1 -DLIBUNWIND_GCC_TOOLCHAIN=$SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH} -DLIBUNWIND_ENABLE_SHARED=0 -DLLVM_PATH="$REPOS/llvm" .. && \
+    cd $REPOS/libunwind && mkdir build && cd build && cmake $CMAKE_CROSS -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" -DLIBUNWIND_LINK_FLAGS=-fuse-ld=lld -DCMAKE_SYSROOT=${SYSROOT} -DLIBUNWIND_GCC_TOOLCHAIN=$SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH} -DLIBUNWIND_ENABLE_SHARED=0 -DLLVM_PATH="$REPOS/llvm" .. && \
     make -j $(nproc) && \
-    cd $REPOS/libcxxabi/ && mkdir build && cd build && cmake --parallel=$(nproc) $CMAKE_ARGS -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" -DLIBCXXABI_LINK_FLAGS=-fuse-ld=lld -DLIBCXXABI_GCC_TOOLCHAIN=$SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH} -DCMAKE_SHARED_LINKER_FLAGS="-L$REPOS/libunwind/build/lib" -DLIBCXXABI_USE_LLVM_UNWINDER=1 -DLIBCXXABI_LIBUNWIND_PATH="$REPOS/libunwind" -DLIBCXXABI_LIBCXX_INCLUDES="$REPOS/libcxx/build/include/c++/v1/" -DLLVM_PATH="$REPOS/llvm" .. && \
+    cd $REPOS/libcxxabi/ && mkdir build && cd build && cmake $CMAKE_CROSS -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" -DLIBCXXABI_LINK_FLAGS=-fuse-ld=lld -DLIBCXXABI_GCC_TOOLCHAIN=$SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH} -DCMAKE_SHARED_LINKER_FLAGS="-L$REPOS/libunwind/build/lib" -DLIBCXXABI_USE_LLVM_UNWINDER=1 -DLIBCXXABI_LIBUNWIND_PATH="$REPOS/libunwind" -DLIBCXXABI_LIBCXX_INCLUDES="$REPOS/libcxx/build/include/c++/v1/" -DLLVM_PATH="$REPOS/llvm" .. && \
     make -j $(nproc) && \
     cd $REPOS/libcxx/build && \
     make -j $(nproc) && \
