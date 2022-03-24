@@ -46,6 +46,9 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     cargo install cargo-cache --version 0.8.2  --locked --root /out/tools \
     --no-default-features --features ci-autoclean,vendored-libgit \
     --target=${!TARGETARCH}-unknown-linux-musl && \
+    cargo install cargo-audit --version 0.16.0  --locked --root /out/tools \
+    --no-default-features --features vendored-openssl,vendored-libgit2 \
+    --target=${!TARGETARCH}-unknown-linux-musl && \
     sccache --show-stats
 
 RUN rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-gnu  && \

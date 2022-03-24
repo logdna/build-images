@@ -82,14 +82,6 @@ RUN cd /tmp \
 ENV RUSTC_WRAPPER="/usr/local/bin/sccache"
 ENV CC_WRAPPER="/usr/local/bin/sccache"
 
-RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
-    if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
-    if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
-    cargo install flamegraph cargo-audit && \
-    cargo install --version 0.6.3 cargo-cache && \
-    cargo cache -a && \
-    sccache --show-stats
-
 ## Set up default cargo env vars for cross compiling
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=clang
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_AR=llvm-ar
