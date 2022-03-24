@@ -186,13 +186,14 @@ pipeline {
                       // GCR image
                       def additional_gcr_tags = []
                       if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) {
-                        additional_gcr_tags.push(generateImageName(
-                          name: "rust"
-                          , variant_base: "debian"
-                          , variant_version: "${VARIANT_VERSION}"
-                          , version: "${RUSTC_VERSION}"
-                          , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
-                        ))
+                        additional_gcr_tags.push(
+                          generateImageTag(
+                            variant_base: "debian"
+                            , variant_version: "${VARIANT_VERSION}"
+                            , version: "${RUSTC_VERSION}"
+                            , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
+                          )
+                        )
                       }
                       buildImage(
                         name: "rust"
@@ -220,14 +221,14 @@ pipeline {
 
                       def additional_dockerhub_tags = []
                       if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) {
-                        additional_dockerhub_tags.push(generateImageName(
-                          repo_base: "docker.io/logdna",
-                          , name: "build-images"
-                          , variant_base: "rust"
-                          , variant_version: "rust-${VARIANT_VERSION}"
-                          , version: "${RUSTC_VERSION}"
-                          , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
-                        ))
+                        additional_dockerhub_tags.push(
+                          generateImageTag(
+                            variant_base: "rust"
+                            , variant_version: "rust-${VARIANT_VERSION}"
+                            , version: "${RUSTC_VERSION}"
+                            , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
+                          )
+                        )
                       }
 
                       // Dockerhub image
@@ -306,7 +307,7 @@ pipeline {
                     , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}"
                     )
                 // Push GCR image
-                sh("docker manifest push ${gcr_manifest_name}")
+                sh("docker manifest push --purge ${gcr_manifest_name}")
 
                 // If we're on main then also update the untagged version
                 if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) {
@@ -318,7 +319,7 @@ pipeline {
                         , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}"
                         , append_git_sha: false
                         )
-                    sh("docker manifest push ${gcr_manifest_name}")
+                    sh("docker manifest push --purge ${gcr_manifest_name}")
                 }
               }
             }
@@ -340,7 +341,7 @@ pipeline {
                       , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}"
                       )
                   // Push Dockerhub image
-                  sh("docker manifest push ${docker_manifest_name}")
+                  sh("docker manifest push --purge ${docker_manifest_name}")
 
                   // If we're on main then also update the untagged version
                   if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) {
@@ -354,7 +355,7 @@ pipeline {
                         , append_git_sha: false
                         )
                     // Push GCR image
-                    sh("docker manifest push ${docker_manifest_name}")
+                    sh("docker manifest push --purge ${docker_manifest_name}")
                   }
                 }
               }
@@ -363,6 +364,30 @@ pipeline {
         }
       }
     }
+  }
+}
+
+def generateImageTag(Map config = [:]){
+  assert config.variant_base : "Missing config.variant_base"
+  assert config.variant_version : "Missing config.variant_version"
+  assert config.version : "Missing config.version"
+
+  def append_git_sha = config.get("append_git_sha", true)
+
+  def tag = ""
+
+  if (config.image_suffix) {
+    tag = "${config.variant_version}-1-${config.version}-${config.image_suffix}"
+  } else {
+    tag = "${config.variant_version}-1-${config.version}"
+  }
+
+  // If config.append_git_sha is set to append it so that the image is unique
+  if (append_git_sha) {
+    def git_sha = env.GIT_COMMIT
+    return "${tag}-${git_sha.substring(0, Math.min(git_sha.length(), 16))}"
+  } else {
+    return tag
   }
 }
 
@@ -375,21 +400,14 @@ def generateImageName(Map config = [:]){
   def repo_base = config.get("repo_base", "us.gcr.io/logdna-k8s")
   def append_git_sha = config.get("append_git_sha", true)
 
-  def name = ""
+  def tag = generateImageTag(
+                variant_base: config.variant_base
+                , variant_version: config.variant_version
+                , version: config.version
+                , image_suffix: config.get("image_suffix", null)
+            )
 
-  if (config.image_suffix) {
-    name = "${repo_base}/${config.name}:${config.variant_version}-1-${config.version}-${config.image_suffix}"
-  } else {
-    name = "${repo_base}/${config.name}:${config.variant_version}-1-${config.version}"
-  }
-
-  // If config.append_git_sha is set to append it so that the image is unique
-  if (append_git_sha) {
-    def git_sha = env.GIT_COMMIT
-    return "${name}-${git_sha.substring(0, Math.min(git_sha.length(), 16))}"
-  } else {
-    return name
-  }
+  return "${repo_base}/${config.name}:${tag}"
 }
 
 // Build and optionally push image
