@@ -184,6 +184,17 @@ pipeline {
                         , image_suffix: "base-${PLATFORM.replaceAll('/','-')}"
                       )
                       // GCR image
+                      def additional_gcr_tags = []
+                      if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) {
+                        additional_gcr_tags.push(
+                          generateImageTag(
+                            variant_base: "debian"
+                            , variant_version: "${VARIANT_VERSION}"
+                            , version: "${RUSTC_VERSION}"
+                            , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
+                            , append_git_sha: false
+                          ))
+                      }
                       buildImage(
                         name: "rust"
                         , variant_base: "debian"
@@ -195,7 +206,8 @@ pipeline {
                         , image_name: image_name
                         , base_name: base_name
                         , pull: true
-                        , push: (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" || params.PUBLISH_GCR_IMAGE == true)
+                        , push: (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  ||  params.PUBLISH_GCR_IMAGE == true)
+                        , additional_tags: additional_gcr_tags
                         , clean: false
                       )
                       def docker_name = generateImageName(
@@ -206,6 +218,19 @@ pipeline {
                         , version: "${RUSTC_VERSION}"
                         , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
                       )
+
+                      def additional_dockerhub_tags = []
+                      if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) {
+                        additional_dockerhub_tags.push(
+                          generateImageTag(
+                            variant_base: "rust"
+                            , variant_version: "rust-${VARIANT_VERSION}"
+                            , version: "${RUSTC_VERSION}"
+                            , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
+                            , append_git_sha: false
+                          ))
+                      }
+
                       // Dockerhub image
                       docker.withRegistry(
                                 'https://index.docker.io/v1/',
@@ -221,7 +246,8 @@ pipeline {
                                 , dockerfile: "Dockerfile"
                                 , image_name: docker_name
                                 , base_name: base_name
-                                , push: (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" || params.PUBLISH_DOCKER_IMAGE == true)
+                                , push: (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || params.PUBLISH_DOCKER_IMAGE == true)
+                                , additional_tags: additional_dockerhub_tags
                             )
                       }
                       try {
@@ -281,7 +307,7 @@ pipeline {
                     , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}"
                     )
                 // Push GCR image
-                sh("docker manifest push ${gcr_manifest_name}")
+                sh("docker manifest push --purge ${gcr_manifest_name}")
 
                 // If we're on main then also update the untagged version
                 if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) {
@@ -293,7 +319,7 @@ pipeline {
                         , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}"
                         , append_git_sha: false
                         )
-                    sh("docker manifest push ${gcr_manifest_name}")
+                    sh("docker manifest push --purge ${gcr_manifest_name}")
                 }
               }
             }
@@ -315,7 +341,7 @@ pipeline {
                       , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}"
                       )
                   // Push Dockerhub image
-                  sh("docker manifest push ${docker_manifest_name}")
+                  sh("docker manifest push --purge ${docker_manifest_name}")
 
                   // If we're on main then also update the untagged version
                   if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) {
@@ -329,7 +355,7 @@ pipeline {
                         , append_git_sha: false
                         )
                     // Push GCR image
-                    sh("docker manifest push ${docker_manifest_name}")
+                    sh("docker manifest push --purge ${docker_manifest_name}")
                   }
                 }
               }
@@ -338,6 +364,30 @@ pipeline {
         }
       }
     }
+  }
+}
+
+def generateImageTag(Map config = [:]){
+  assert config.variant_base : "Missing config.variant_base"
+  assert config.variant_version : "Missing config.variant_version"
+  assert config.version : "Missing config.version"
+
+  def append_git_sha = config.get("append_git_sha", true)
+
+  def tag = ""
+
+  if (config.image_suffix) {
+    tag = "${config.variant_version}-1-${config.version}-${config.image_suffix}"
+  } else {
+    tag = "${config.variant_version}-1-${config.version}"
+  }
+
+  // If config.append_git_sha is set to append it so that the image is unique
+  if (append_git_sha) {
+    def git_sha = env.GIT_COMMIT
+    return "${tag}-${git_sha.substring(0, Math.min(git_sha.length(), 16))}"
+  } else {
+    return tag
   }
 }
 
@@ -350,21 +400,15 @@ def generateImageName(Map config = [:]){
   def repo_base = config.get("repo_base", "us.gcr.io/logdna-k8s")
   def append_git_sha = config.get("append_git_sha", true)
 
-  def name = ""
+  def tag = generateImageTag(
+                variant_base: config.variant_base
+                , variant_version: config.variant_version
+                , version: config.version
+                , image_suffix: config.get("image_suffix", null)
+                , append_git_sha: append_git_sha
+            )
 
-  if (config.image_suffix) {
-    name = "${repo_base}/${config.name}:${config.variant_version}-1-${config.version}-${config.image_suffix}"
-  } else {
-    name = "${repo_base}/${config.name}:${config.variant_version}-1-${config.version}"
-  }
-
-  // If config.append_git_sha is set to append it so that the image is unique
-  if (append_git_sha) {
-    def git_sha = env.GIT_COMMIT
-    return "${name}-${git_sha.substring(0, Math.min(git_sha.length(), 16))}"
-  } else {
-    return name
-  }
+  return "${repo_base}/${config.name}:${tag}"
 }
 
 // Build and optionally push image
@@ -379,6 +423,7 @@ def buildImage(Map config = [:]) {
   // Neither are consistent, so we have to do this :[]
   def shouldPush =  config.get("push", false)
   def directory = "${config.name}/${config.variant_base}"
+  def additionalTags = config.get("additional_tags", [])
 
   List<String> buildArgs = [
     "--progress"
@@ -436,6 +481,9 @@ def buildImage(Map config = [:]) {
 
   if (shouldPush) {
     image.push()
+    for (tag in additionalTags) {
+        image.push(tag)
+    }
   }
 
   if (config.clean) {
