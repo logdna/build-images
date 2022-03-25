@@ -185,7 +185,7 @@ pipeline {
                       )
                       // GCR image
                       def additional_gcr_tags = []
-                      if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) {
+                      if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || env.BRANCH_NAME == "fixup-unshad-manifests") {
                         additional_gcr_tags.push(
                           generateImageTag(
                             variant_base: "debian"
@@ -220,7 +220,7 @@ pipeline {
                       )
 
                       def additional_dockerhub_tags = []
-                      if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main" ) {
+                      if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || env.BRANCH_NAME == "fixup-unshad-manifests") {
                         additional_dockerhub_tags.push(
                           generateImageTag(
                             variant_base: "rust"
