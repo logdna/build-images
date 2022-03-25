@@ -165,7 +165,7 @@ pipeline {
                       )
                       // GCR image
                       def additional_gcr_tags = []
-                      if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || env.BRANCH_NAME == "fixup-unshad-manifests") {
+                      if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || env.BRANCH_NAME == "test-jenkins-pools") {
                         additional_gcr_tags.push(
                           generateImageTag(
                             variant_base: "debian"
@@ -186,7 +186,7 @@ pipeline {
                         , image_name: image_name
                         , base_name: base_name
                         , pull: true
-                        , push: (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || env.BRANCH_NAME == "fixup-unshad-manifests" || params.PUBLISH_GCR_IMAGE == true)
+                        , push: (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || env.BRANCH_NAME == "test-jenkins-pools" || params.PUBLISH_GCR_IMAGE == true)
                         , additional_tags: additional_gcr_tags
                         , clean: false
                       )
@@ -200,7 +200,7 @@ pipeline {
                       )
 
                       def additional_dockerhub_tags = []
-                      if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || env.BRANCH_NAME == "fixup-unshad-manifests") {
+                      if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || env.BRANCH_NAME == "test-jenkins-pools") {
                         additional_dockerhub_tags.push(
                           generateImageTag(
                             variant_base: "rust"
@@ -226,7 +226,7 @@ pipeline {
                                 , dockerfile: "Dockerfile"
                                 , image_name: docker_name
                                 , base_name: base_name
-                                , push: (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || env.BRANCH_NAME == "fixup-unshad-manifests" || params.PUBLISH_DOCKER_IMAGE == true)
+                                , push: (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || env.BRANCH_NAME == "test-jenkins-pools" || params.PUBLISH_DOCKER_IMAGE == true)
                                 , additional_tags: additional_dockerhub_tags
                             )
                       }
@@ -275,7 +275,7 @@ pipeline {
         stages {
           stage ('Create GCR Multi Arch Manifest') {
             when {
-                expression { return ((env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || env.BRANCH_NAME == "fixup-unshad-manifests") || params.PUBLISH_GCR_IMAGE == true) }
+                expression { return ((env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || env.BRANCH_NAME == "test-jenkins-pools") || params.PUBLISH_GCR_IMAGE == true) }
             }
             steps {
               script {
@@ -290,7 +290,7 @@ pipeline {
                 sh("docker manifest push --purge ${gcr_manifest_name}")
 
                 // If we're on main then also update the untagged version
-                if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || env.BRANCH_NAME == "fixup-unshad-manifests") {
+                if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || env.BRANCH_NAME == "test-jenkins-pools") {
                     gcr_manifest_name = createMultiArchImageManifest(
                         name: "rust"
                         , variant_base: "debian"
@@ -306,7 +306,7 @@ pipeline {
           }
           stage ('Create Docker Hub Multi Arch Manifest') {
             when {
-                expression { return ((env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || env.BRANCH_NAME == "fixup-unshad-manifests") || params.PUBLISH_DOCKER_IMAGE == true) }
+                expression { return ((env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || env.BRANCH_NAME == "test-jenkins-pools") || params.PUBLISH_DOCKER_IMAGE == true) }
             }
             steps {
               script {
@@ -324,7 +324,7 @@ pipeline {
                   sh("docker manifest push --purge ${docker_manifest_name}")
 
                   // If we're on main then also update the untagged version
-                  if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || env.BRANCH_NAME == "fixup-unshad-manifests") {
+                  if (env.CHANGE_BRANCH  == "main" || env.BRANCH_NAME == "main"  || env.BRANCH_NAME == "test-jenkins-pools") {
                     docker_manifest_name = createMultiArchImageManifest(
                         repo_base: "docker.io/logdna",
                         , name: "build-images"
