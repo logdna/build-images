@@ -119,14 +119,6 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     cd /tmp/musl-$MUSL_VERSION && \
     make -j $(nproc) && make install
 
-## Set up default cargo env vars for cross compiling
-ENV CC_${CROSS_COMPILER_TARGET_ARCH}_unknown_linux_musl=${CROSS_COMPILER_TARGET_ARCH}-linux-musl-gcc \
-    CXX_${CROSS_COMPILER_TARGET_ARCH}_unknown_linux_musl=${CROSS_COMPILER_TARGET_ARCH}-linux-musl-g++ \
-    CC_${CROSS_COMPILER_TARGET_ARCH}_unknown_linux_gnu=gcc \
-    CXX_${CROSS_COMPILER_TARGET_ARCH}_unknown_linux_gnu=g++ \
-    CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-musl-gcc \
-    CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=x86_64-linux-musl-gcc
-
 # Finish libc++ build and install
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
@@ -145,7 +137,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     make install
 
 ## Install static Zlib
-ARG ZLIB_VERSION=1.2.11
+ARG ZLIB_VERSION=1.2.12
 
 RUN mkdir -p /tmp/zlib && cd /tmp/zlib && \
     curl -fLO "http://zlib.net/zlib-$ZLIB_VERSION.tar.gz" && \
