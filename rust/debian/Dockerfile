@@ -63,7 +63,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
     cd /tmp/musl-$MUSL_VERSION && \
-    TARGET=${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl; \
+    TARGET=${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl; \
     AR=llvm-ar RANLIB=llvm-ranlib CC="$CC_WRAPPER clang" \
     CFLAGS="--target=$TARGET" \
     LDFLAGS="-fuse-ld=lld -L$SYSROOT/usr/lib/linux/" \
@@ -81,13 +81,13 @@ RUN set -x \
     && tar -C /tmp/llvm-project/ --strip-components=1 -xf llvm-project-${LLVM_VERSION}.src.tar.xz
 
 ENV CMAKE_COMMAND="cmake --parallel=$(nproc)"
-ENV CMAKE_TARGET=${CROSS_COMPILER_TARGET_ARCH}-linux-musl
 ENV CMAKE_HOST_ARGS="-DCMAKE_INSTALL_PREFIX=${SYSROOT}/usr -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=lld"
 ENV CMAKE_HOST="$CMAKE_COMMAND $CMAKE_HOST_ARGS"
+ENV CMAKE_TARGET=${CROSS_COMPILER_TARGET_ARCH}-linux-musl
 ENV CMAKE_PROGRAMS="-DCMAKE_AR=/usr/bin/llvm-ar -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_NM=/usr/bin/llvm-nm -DCMAKE_RANLIB=/usr/bin/llvm-ranlib -DLLVM_CONFIG_PATH=/usr/bin/llvm-config"
 ENV CMAKE_CROSS_ARGS="${CMAKE_PROGRAMS} ${CMAKE_HOST_ARGS} -DCMAKE_INSTALL_PREFIX=${SYSROOT}/usr ${CMAKE_HOST_ARGS} -DCMAKE_CROSSCOMPILING=1 -DCMAKE_ASM_COMPILER_TARGET=${CMAKE_TARGET} -DCMAKE_C_COMPILER_TARGET=${CMAKE_TARGET} -DCMAKE_CXX_COMPILER_TARGET=${CMAKE_TARGET} -DLLVM_DEFAULT_TARGET_TRIPLE=${CMAKE_TARGET} -DCMAKE_C_COMPILER_WORKS=TRUE -DCMAKE_CXX_COMPILER_WORKS=TRUE"
-ENV CMAKE_SHARED_FLAGS="--gcc-toolchain=${SYSROOT}/usr/${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl -fuse-ld=lld -nostdinc -nodefaultlibs -nostdlib -isystem ${SYSROOT}/usr/${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl/include/ -isystem ${SYSROOT}/usr/include/"
-ENV CMAKE_C_FLAGS="${CMAKE_SHARED_FLAGS} -B${SYSROOT}/usr/${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl/lib/"
+ENV CMAKE_SHARED_FLAGS="--gcc-toolchain=${SYSROOT}/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl -fuse-ld=lld -nostdinc -nodefaultlibs -nostdlib -isystem ${SYSROOT}/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/ -isystem ${SYSROOT}/usr/include/"
+ENV CMAKE_C_FLAGS="${CMAKE_SHARED_FLAGS} -B${SYSROOT}/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib/"
 ENV CMAKE_CXX_FLAGS="-nostdinc++ ${CMAKE_SHARED_FLAGS} --stdlib=libc++ --rtlib=compiler-rt"
 ENV CMAKE_CROSS="$CMAKE_COMMAND $CMAKE_CROSS_ARGS"
 
@@ -107,11 +107,11 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     # Generate and install sysroot libc++ headers \
     cd $REPOS/clang && cd build && \
     cd $REPOS/libcxx && mkdir build && cd build && \
-    $CMAKE_CROSS $CMAKE_LAUNCHERS -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" -DLIBCXX_LINK_FLAGS=-fuse-ld=lld -DLIBCXX_GCC_TOOLCHAIN=$SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH} -DLIBCXX_HAS_MUSL_LIBC=1 -DLIBCXX_HAS_GCC_S_LIB=0 -DLIBCXX_CXX_ABI=libcxxabi -DLIBCXX_CXX_ABI_INCLUDE_PATHS="$REPOS/libcxxabi/include" -DLIBCXX_CXX_ABI_LIBRARY_PATH="$REPOS/libcxxabi/build/lib" -DLLVM_PATH="$REPOS/llvm" .. && \
+    $CMAKE_CROSS $CMAKE_LAUNCHERS -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" -DCMAKE_C_IMPLICIT_LINK_DIRECTORIES= -DCMAKE_CXX_IMPLICIT_LINK_DIRECTORIES= -DLIBCXX_LINK_FLAGS=-fuse-ld=lld -DLIBCXX_GCC_TOOLCHAIN=$SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl -DLIBCXX_HAS_MUSL_LIBC=1 -DLIBCXX_HAS_GCC_S_LIB=0 -DLIBCXX_CXX_ABI=libcxxabi -DLIBCXX_CXX_ABI_INCLUDE_PATHS="$REPOS/libcxxabi/include" -DLIBCXX_CXX_ABI_LIBRARY_PATH="$REPOS/libcxxabi/build/lib" -DLLVM_PATH="$REPOS/llvm" .. && \
     make -j $(nproc) cxx_abi_headers generate-cxx-headers install-cxx-headers && \
     # Build and install sysroot compiler-rt \
     cd $REPOS/compiler-rt && mkdir build && cd build && \
-    $CMAKE_CROSS $CMAKE_LAUNCHERS -DCMAKE_C_FLAGS="${CMAKE_C_FLAGS}" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCOMPILER_RT_BUILD_BUILTINS=ON -DCOMPILER_RT_BUILD_LIBFUZZER=OFF -DCOMPILER_RT_BUILD_MEMPROF=OFF -DCOMPILER_RT_BUILD_PROFILE=OFF -DCOMPILER_RT_BUILD_SANITIZERS=OFF -DCOMPILER_RT_BUILD_XRAY=OFF -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON -DLLVM_PATH="$REPOS/llvm" .. && \
+    $CMAKE_CROSS $CMAKE_LAUNCHERS -DCMAKE_C_FLAGS="${CMAKE_C_FLAGS}" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_C_IMPLICIT_LINK_DIRECTORIES= -DCMAKE_CXX_IMPLICIT_LINK_DIRECTORIES= -DCOMPILER_RT_BUILD_BUILTINS=ON -DCOMPILER_RT_BUILD_LIBFUZZER=OFF -DCOMPILER_RT_BUILD_MEMPROF=OFF -DCOMPILER_RT_BUILD_PROFILE=OFF -DCOMPILER_RT_BUILD_SANITIZERS=OFF -DCOMPILER_RT_BUILD_XRAY=OFF -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON -DLLVM_PATH="$REPOS/llvm" .. && \
     make -j $(nproc) install-builtins
 
 # Finish musl libc build and install
@@ -125,13 +125,14 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
     if [ -z "$CC_WRAPPER" ]; then export CMAKE_LAUNCHERS="-DCMAKE_C_COMPILER_LAUNCHER=$CC_WRAPPER -DCMAKE_CXX_COMPILER_LAUNCHER=$CC_WRAPPER"; fi; \
     export REPOS=/tmp/llvm-project && \
-    TARGET=${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl; \
+    TARGET=${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl; \
     cd $REPOS/libunwind && mkdir build && cd build && \
-    cmake $CMAKE_CROSS $CMAKE_LAUNCHERS -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" -DLIBUNWIND_LINK_FLAGS=-fuse-ld=lld -DCMAKE_SYSROOT=${SYSROOT} -DLIBUNWIND_GCC_TOOLCHAIN=$SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH} -DLIBUNWIND_ENABLE_SHARED=0 -DLLVM_PATH="$REPOS/llvm" .. && \
+    $CMAKE_CROSS $CMAKE_LAUNCHERS -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" -DLIBUNWIND_LINK_FLAGS=-fuse-ld=lld -DCMAKE_SYSROOT=${SYSROOT} -DLIBUNWIND_GCC_TOOLCHAIN=$SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl -DLIBUNWIND_ENABLE_SHARED=0 -DLLVM_PATH="$REPOS/llvm" .. && \
     make -j $(nproc) && \
     cd $REPOS/libcxxabi/ && mkdir build && cd build && \
-    cmake $CMAKE_CROSS $CMAKE_LAUNCHERS -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" -DLIBCXXABI_LINK_FLAGS=-fuse-ld=lld -DLIBCXXABI_GCC_TOOLCHAIN=$SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH} -DCMAKE_SHARED_LINKER_FLAGS="-L$REPOS/libunwind/build/lib" -DLIBCXXABI_USE_LLVM_UNWINDER=1 -DLIBCXXABI_LIBUNWIND_PATH="$REPOS/libunwind" -DLIBCXXABI_LIBCXX_INCLUDES="$REPOS/libcxx/build/include/c++/v1/" -DLLVM_PATH="$REPOS/llvm" .. && \
-    make -j $(nproc) && \
+    $CMAKE_CROSS $CMAKE_LAUNCHERS -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" -DLIBCXXABI_HAS_CXA_THREAD_ATEXIT_IMPL=NO -DLIBCXXABI_LINK_FLAGS=-fuse-ld=lld -DLIBCXXABI_GCC_TOOLCHAIN=$SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl -DCMAKE_SHARED_LINKER_FLAGS="-L$REPOS/libunwind/build/lib" -DLIBCXXABI_USE_LLVM_UNWINDER=1 -DLIBCXXABI_LIBUNWIND_PATH="$REPOS/libunwind" -DLIBCXXABI_LIBCXX_INCLUDES="$REPOS/libcxx/build/include/c++/v1/" -DLLVM_PATH="$REPOS/llvm" .. && \
+    make -j $(nproc) cxxabi_static && \
+    make install && \
     cd $REPOS/libcxx/build && \
     make -j $(nproc) && \
     make install
@@ -148,11 +149,11 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
     echo "Building zlib" && \
     cd /tmp/zlib/zlib-$ZLIB_VERSION && \
-    CC="$CC_WRAPPER clang --target=${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl" \
-    CFLAGS="-nostdinc -isystem $SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl/include/" \
+    CC="$CC_WRAPPER clang --target=${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl" \
+    CFLAGS="-nostdinc -isystem $SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/" \
     LDSHARED="lld" AR=llvm-ar RANLIB=llvm-ranlib \
-    LDFLAGS="-L$SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl/lib" \
-    ./configure --static --shared --prefix=$SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-linux-musl || cat configure.log && \
+    LDFLAGS="-L$SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib" \
+    ./configure --static --shared --prefix=$SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl || cat configure.log && \
     make -j$(nproc) install && \
     sccache --show-stats && \
     rm -r /tmp/zlib
@@ -166,20 +167,19 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     cd /tmp/rocksdb && \
     export USE_CLANG=1 TARGET_OS=Linux PORTABLE=1 AR=llvm-ar; \
     export TARGET_ARCHITECTURE=${CROSS_COMPILER_TARGET_ARCH}; \
-    export C_INCLUDES="-isystem $SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl/include/ -isystem $SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $SYSROOT/usr/include/"; \
-    export CC="$CC_WRAPPER clang --target=${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl"; \
+    export C_INCLUDES="-isystem $SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/ -isystem $SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $SYSROOT/usr/include/"; \
+    export CC="$CC_WRAPPER clang --target=${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl"; \
     export EXTRA_CFLAGS="-nostdinc -fPIC $C_INCLUDES -nostdlib -nostdlib++ -nodefaultlibs -Wno-unused-command-line-argument"; \
-    export CXX="$CC_WRAPPER clang++ -nostdlib++ -fuse-ld=lld --target=${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl"; \
-    export EXTRA_CXXFLAGS="-nostdinc -nostdinc++ -fPIC -isystem $SYSROOT/usr/include/c++/v1/ -isystem $SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl/include/ -D _LIBCPP_HAS_MUSL_LIBC $C_INCLUDES -Wno-unused-command-line-argument "; \
-    export CFLAGS="$EXTRA_CFLAGS -L$SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-linux-unknown-musl/lib"; \
+    export CXX="$CC_WRAPPER clang++ -nostdlib++ -fuse-ld=lld --target=${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl"; \
+    export EXTRA_CXXFLAGS="-nostdinc -nostdinc++ -fPIC -isystem $SYSROOT/usr/include/c++/v1/ -isystem $SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/ -D _LIBCPP_HAS_MUSL_LIBC $C_INCLUDES -Wno-unused-command-line-argument "; \
+    export CFLAGS="$EXTRA_CFLAGS -L$SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib"; \
     DISABLE_WARNING_AS_ERROR=1 make -j$(nproc) static_lib && \
-    mkdir -p $SYSROOT/usr/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/lib && \
-    mkdir $SYSROOT/usr/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/include && \
-    cp librocksdb.a* $SYSROOT/usr/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/lib && \
-    cp -r include $SYSROOT/usr/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/ && \
-    cp -r include/* $SYSROOT/usr/include/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/ && \
+    cp librocksdb.a* $SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib && \
+    cp -r include/* $SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/ && \
     sccache --show-stats && \
     rm -R /tmp/rocksdb/
+
+RUN llvm-ar cru $SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib/libstdc++.a
 
 CMD ["bash"]
 
@@ -202,18 +202,42 @@ RUN ln -s ${SYSROOT}/usr/rocksdb /usr/local/rocksdb
 RUN ln -s ${SYSROOT}/usr/lib/ /usr/local/lib
 
 ENV PCRE2_SYS_STATIC=1
-ENV SHARED_RUSTFLAGS="-Clink-args=-nodefaultlibs -Clink-args=-nostdlib -Clink-args=-nostdlib++ -Clink-args=-stdlib=c++ -Clink-args=-Wl,-verbose -Clink-args=--verbose -Ctarget-feature=+crt-static -Clink-args=-static -L /usr/local/$(ARCH)-linux-musl/lib/ -Clink-args=-static-libgcc -l static=c++ -Clink-args=-static-libstdc++"
+ENV SHARED_RUSTFLAGS="-Clinker=clang -Clink-args=-fuse-ld=lld -Clink-args=-nodefaultlibs -Clink-args=-nostdlib -Clink-args=-nostdlib++ -Clink-args=-stdlib=c++ -Clink-args=-Wl,-verbose -Clink-args=--verbose -Ctarget-feature=+crt-static -Clink-args=-static -L /usr/local/$(ARCH)-linux-musl/lib/ -Clink-args=-static-libgcc -l static=c++ -Clink-args=-static-libstdc++"
 
-ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="${CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS} ${SHARED_RUSTFLAGS} -Clink-args=target=aarch64-unknown-linux-musl"
-ENV CC_aarch64_unknown_linux_musl="clang --target=aarch64-unknown-linux-musl"
-ENV CFLAGS_aarch64_unknown_linux_musl="-isystem /usr/include/aarch64-linux-musl -nodefaultlibs "
-ENV CXX_aarch64_unknown_linux_musl="clang++ --target=aarch64-unknown-linux-musl"
-ENV CXXFLAGS_aarch64_unknown_linux_musl="--stdlib=libc++ --rtlib=compiler-rt -nodefaultlibs "
+ENV MUSL_C_INCLUDES="-isystem $SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/ -isystem $SYSROOT/usr/include/linux/"
+ENV MUSL_CXX_INCLUDES="-isystem $SYSROOT/usr/include/c++/v1/ -isystem $SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/ "
 
-ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="${CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS} ${SHARED_RUSTFLAGS} -Clink-args=target=x86_64-unknown-linux-musl -Lnative=${SYSROOT}/usr/x86_64-linux-unknown-musl/lib/"
-ENV CC_x86_64_unknown_linux_musl="clang --target=x86_64-unknown-linux-musl"
-ENV CFLAGS_x86_64_unknown_linux_musl="-nostdinc -isystem /usr/include/x86_64-linux-musl --rtlib=compiler-rt -nodefaultlibs "
-ENV CXX_x86_64_unknown_linux_musl="clang++ --target=x86_64-unknown-linux-musl"
-ENV CXXFLAGS_x86_64_unknown_linux_musl="-nostdinc --stdlib=libc++ --rtlib=compiler-rt -nodefaultlibs "
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="${CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS} ${SHARED_RUSTFLAGS} -Clink-args=target=aarch64-unknown-linux-musl  -Lnative=${SYSROOT}/usr/lib/"
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER="clang"
+ENV LDFLAGS_aarch64_unknown_linux_musl="--target=aarch64-unknown-linux-musl -fuse-ld=lld -nodefaultlibs -nostdlib -L ${SYSROOT}/usr/aarch64-unknown-linux-musl/lib -lc -L ${SYSROOT}/usr/lib/linux/ -lclang_rt.builtins-aarch64"
+ENV CC_aarch64_unknown_linux_musl="clang"
+ENV CFLAGS_aarch64_unknown_linux_musl="--target=aarch64-unknown-linux-musl -fuse-ld=lld -static -fPIC  -nostdlib -nodefaultlibs -nostdinc ${MUSL_C_INCLUDES} -L ${SYSROOT}/usr/aarch64-unknown-linux-musl/lib -lc  -L ${SYSROOT}/usr/lib/linux/ -lclang_rt.builtins-aarch64"
+ENV CXX_aarch64_unknown_linux_musl="clang++"
+ENV CXXFLAGS_aarch64_unknown_linux_musl="--target=aarch64-unknown-linux-musl -fuse-ld=lld -nostdinc -static-libstdc++ --stdlib=c++ --rtlib=compiler-rt -nodefaultlibs -nostdinc++ ${MUSL_CXX_INCLUDES} ${MUSL_C_INCLUDES}"
+
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="${CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS} ${SHARED_RUSTFLAGS} -Clink-args=target=x86_64-unknown-linux-musl -Lnative=${SYSROOT}/usr/lib/"
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER="clang"
+ENV LDFLAGS_x86_64_unknown_linux_musl="--target=x86_64-unknown-linux-musl -fuse-ld=lld -nodefaultlibs -nostdlib -L ${SYSROOT}/usr/x86_64-unknown-linux-musl/lib -lc"
+ENV CC_x86_64_unknown_linux_musl="clang"
+ENV CFLAGS_x86_64_unknown_linux_musl="--target=x86_64-unknown-linux-musl -fuse-ld=lld -static -fPIC  -nostdlib -nodefaultlibs -nostdinc ${MUSL_C_INCLUDES} -L ${SYSROOT}/usr/x86_64-unknown-linux-musl/lib -lc"
+ENV CXX_x86_64_unknown_linux_musl="clang++"
+ENV CXXFLAGS_x86_64_unknown_linux_musl="--target=x86_64-unknown-linux-musl -fuse-ld=lld -nostdinc -static-libstdc++ --stdlib=c++ --rtlib=compiler-rt -nodefaultlibs -nostdinc++ ${MUSL_CXX_INCLUDES} ${MUSL_C_INCLUDES}"
+
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS="${CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS} ${SHARED_RUSTFLAGS} -Clink-args=target=aarch64-unknown-linux-gnu"
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER="clang"
+ENV LDLAGS_aarch64_unknown_linux_gnu="--target=aarch64-unknown-linux-gnu"
+ENV CC_aarch64_unknown_linux_gnu="clang"
+ENV CFLAGS_aarch64_unknown_linux_gnu="--target=aarch64-unknown-linux-gnu -fuse-ld=lld"
+ENV CXX_aarch64_unknown_linux_gnu="clang++"
+ENV CXXFLAGS_aarch64_unknown_linux_gnu="--target=aarch64-unknown-linux-gnu -fuse-ld=lld"
+
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="${CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS} ${SHARED_RUSTFLAGS} -Clink-args=target=x86_64-unknown-linux-gnu"
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER="clang"
+ENV LDLAGS_x86_64_unknown_linux_gnu="--target=x86_64-unknown-linux-gnu"
+ENV CC_x86_64_unknown_linux_gnu="clang"
+ENV CFLAGS_x86_64_unknown_linux_gnu="--target=x86_64-unknown-linux-gnu -fuse-ld=lld"
+ENV CXX_x86_64_unknown_linux_gnu="clang++"
+ENV CXXFLAGS_x86_64_unknown_linux_gnu="--target=x86_64-unknown-linux-gnu -fuse-ld=lld"
+
 
 CMD ["bash"]
