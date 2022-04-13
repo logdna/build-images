@@ -35,7 +35,7 @@ RUN DEPS="ca-certificates curl file m4 make locales pkg-config xz-utils cmake \
           texinfo procps zlib1g-dev clang-${LLVM_MAJOR_VERSION} \
           llvm-${LLVM_MAJOR_VERSION} lld-${LLVM_MAJOR_VERSION} \
           libc++-${LLVM_MAJOR_VERSION}-dev lldb-${LLVM_MAJOR_VERSION}\
-          libsystemd-dev" \
+          systemd libsystemd-dev" \
   && apt-get update \
   && apt-key add /llvm-snapshot.gpg.key \
   && apt-get install -y --no-install-recommends software-properties-common \
