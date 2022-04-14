@@ -116,6 +116,43 @@ pipeline {
     } // End Build Rust Images stage
     // Build the images containing the cross compilers targeting actual
     // distribution platforms
+    stage('Create Multi-Arch Manifests/Images for Base') {
+      matrix {
+        axes {
+          axis {
+            name 'RUSTC_VERSION'
+            values 'stable', 'beta'
+          }
+          axis {
+            name 'VARIANT_VERSION'
+            values 'buster', 'bullseye'
+          }
+        }
+        agent {
+          node {
+            label 'ec2-fleet'
+            customWorkspace "docker-images-${BUILD_NUMBER}"
+          }
+        }
+        stages {
+          stage ('Create GCR Multi Arch Manifest') {
+            steps {
+              script {
+                def gcr_manifest_name = createMultiArchImageManifest(
+                    name: "rust"
+                    , variant_base: "debian"
+                    , variant_version: "${VARIANT_VERSION}"
+                    , version: "${RUSTC_VERSION}"
+                    , image_suffix: "base"
+                    )
+                // GCR manifest
+                sh("docker manifest push --purge ${gcr_manifest_name}")
+              }
+            }
+          }
+        }
+      }
+    }
     stage('Build CROSS_COMPILER_TARGET_ARCH Specific images on top of PLATFORMs base image') {
       matrix {
         axes {
@@ -169,19 +206,19 @@ pipeline {
                         echo 'AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY' >> ${WORKSPACE}/.aws_creds
                     """
                     script {
+                      def base_name = generateImageName(
+                        name: "rust"
+                        , variant_base: "debian"
+                        , variant_version: "${VARIANT_VERSION}"
+                        , version: "${RUSTC_VERSION}"
+                        , image_suffix: "base"
+                      )
                       def image_name = generateImageName(
                         name: "rust"
                         , variant_base: "debian"
                         , variant_version: "${VARIANT_VERSION}"
                         , version: "${RUSTC_VERSION}"
                         , image_suffix: "${CROSS_COMPILER_TARGET_ARCH}-${PLATFORM.replaceAll('/','-')}"
-                      )
-                      def base_name = generateImageName(
-                        name: "rust"
-                        , variant_base: "debian"
-                        , variant_version: "${VARIANT_VERSION}"
-                        , version: "${RUSTC_VERSION}"
-                        , image_suffix: "base-${PLATFORM.replaceAll('/','-')}"
                       )
                       // GCR image
                       def additional_gcr_tags = []
