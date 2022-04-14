@@ -20,7 +20,9 @@ ENV PATH="${CARGO_HOME}/bin:${PATH}"
 COPY llvm-snapshot.gpg.key /llvm-snapshot.gpg.key
 COPY .curlrc /root
 
-RUN env
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US
+ENV TERM xterm
 
 RUN DEPS='build-essential binutils ca-certificates curl file gcc g++ libtool m4 libc6-dev make xz-utils locales libexpat1-dev gettext libz-dev libssl-dev autoconf pkg-config bzip2 libsystemd-dev systemd lsof procps git cmake automake hunspell-en-gb hunspell-tools linux-perf clang-12 llvm-12 lldb-12 texinfo procps' \
   && apt-get update \
@@ -40,10 +42,6 @@ RUN DEPS='build-essential binutils ca-certificates curl file gcc g++ libtool m4 
 RUN free -h && df -h && cat /proc/cpuinfo
 
 RUN unmunch /usr/share/hunspell/en_GB.dic /usr/share/hunspell/en_GB.aff | grep -v "'s" > /dict.txt
-
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US
-ENV TERM xterm
 
 ARG VERSION="stable"
 
