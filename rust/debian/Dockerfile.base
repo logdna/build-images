@@ -83,6 +83,8 @@ RUN cd /tmp \
     && chmod +x /usr/local/bin/sccache \
     && rm -rf /tmp/*
 
+CMD ["bash"]
+
 ENV RUSTC_WRAPPER="/usr/local/bin/sccache"
 ENV CC_WRAPPER="/usr/local/bin/sccache"
 
