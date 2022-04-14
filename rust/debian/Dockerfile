@@ -1,14 +1,58 @@
 ARG CROSS_COMPILER_TARGET_ARCH=x86_64
 ARG BASE_IMAGE=logdna/build-images/rust-buster-1-stable-base-${CROSS_COMPILER_TARGET_ARCH}
-FROM ${BASE_IMAGE}
 
+# Image that runs natively on the BUILDPLATFORM to produce cross compile
+# artifacts
+FROM --platform=${BUILDPLATFORM} ${BASE_IMAGE} as build
+
+SHELL ["/bin/bash", "-c"]
+
+ARG BUILDARCH
+ARG TARGETARCH
+
+ARG CROSS_COMPILER_TARGET_ARCH
 ARG SCCACHE_BUCKET
 ARG SCCACHE_REGION
 ARG SCCACHE_ENDPOINT
 ARG SCCACHE_RECACHE
 ARG SCCACHE_SERVER_PORT=4226
-ARG AWS_ACCESS_KEY_ID
-ARG AWS_SECRET_ACCESS_KEY
+
+RUN rustup target add "${!TARGETARCH}-unknown-linux-musl"  && \
+    chmod -R a+rw $RUSTUP_HOME $CARGO_HOME
+
+# Add cargo-flamegraph and cargo-cache
+RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
+    if [ -z "$SCCACHE_BUCKET" ]; then unset RUSTC_WRAPPER; fi; \
+    if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
+    mkdir -p /out/tools && \
+    cargo install --git https://github.com/flamegraph-rs/flamegraph \
+        --tag v0.5.1 --locked --root /out/tools \
+        --target=${!TARGETARCH}-unknown-linux-musl && \
+    cargo install cargo-cache --version 0.8.2  --locked --root /out/tools \
+        --no-default-features --features ci-autoclean,vendored-libgit \
+        --target=${!TARGETARCH}-unknown-linux-musl && \
+    cargo install cargo-audit --version 0.16.0  --locked --root /out/tools \
+        --no-default-features --features vendored-openssl,vendored-libgit2 \
+        --target=${!TARGETARCH}-unknown-linux-musl && \
+    sccache --show-stats
+
+#############################################################################
+## The Cross Compile image
+#############################################################################
+FROM --platform=${TARGETPLATFORM} ${BASE_IMAGE}
+
+# Copy in the cross compiled cargo tools from base
+COPY --from=build /out/tools/* /usr/local/bin/
+
+ARG BUILDARCH
+ARG TARGETARCH
+
+ARG CROSS_COMPILER_TARGET_ARCH
+ARG SCCACHE_BUCKET
+ARG SCCACHE_REGION
+ARG SCCACHE_ENDPOINT
+ARG SCCACHE_RECACHE
+ARG SCCACHE_SERVER_PORT=4226
 
 ARG CROSS_COMPILER_TARGET_ARCH=x86_64
 
