@@ -45,10 +45,47 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     sccache --show-stats
 
+ENV LINUX_HEADER_VERSION="4.19.88"
+ARG MUSL_VERSION="1.2.2"
+
+ENV LLVM_SYSROOT="/sysroot/${CROSS_COMPILER_TARGET_ARCH}-musl"
+ENV MUSL_TRIPLE="${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl"
+
+# Create LLVM_SYSROOT
+RUN mkdir -p $LLVM_SYSROOT
+
+# Install linux headers in LLVM_SYSROOT
+RUN cd /tmp && \
+    curl --retry 5 -sSfL -O "https://github.com/sabotage-linux/kernel-headers/archive/v$LINUX_HEADER_VERSION.tar.gz" && \
+    tar xf v$LINUX_HEADER_VERSION.tar.gz && cd kernel-headers-$LINUX_HEADER_VERSION && \
+    make ARCH=${CROSS_COMPILER_TARGET_ARCH} prefix=$LLVM_SYSROOT/usr/ install && \
+    cd / && rm -r /tmp/*
+
+# Download and untar musl
+RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
+    if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
+    if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
+    curl -fSLo /tmp/musl.tar.gz https://www.musl-libc.org/releases/musl-$MUSL_VERSION.tar.gz && \
+    tar -C /tmp -xf /tmp/musl.tar.gz && \
+    cd /tmp/musl-$MUSL_VERSION && \
+    AR=llvm-ar RANLIB=llvm-ranlib CC="$CC_WRAPPER clang" \
+    CFLAGS="--target=$MUSL_TRIPLE" \
+    LDFLAGS="-fuse-ld=lld -L$LLVM_SYSROOT/usr/lib/linux/" \
+    LIBCC="-lclang_rt.builtins-${CROSS_COMPILER_TARGET_ARCH}" \
+    ./configure --prefix=$LLVM_SYSROOT/usr/$MUSL_TRIPLE \
+                --syslibdir=$LLVM_SYSROOT/usr/lib \
+                --build=${!BUILDARCH} \
+                --target=$MUSL_TRIPLE && \
+    make install-headers
+
 #############################################################################
 ## The Cross Compile image
 #############################################################################
 FROM --platform=${TARGETPLATFORM} ${BASE_IMAGE}
+
+# Copy in the cross compiled cargo tools from base
+COPY --from=build /out/tools/* /usr/local/bin/
+COPY --from=build /sysroot /sysroot
 
 ARG BUILDARCH
 ARG TARGETARCH
@@ -61,9 +98,6 @@ ARG SCCACHE_RECACHE
 ARG SCCACHE_SERVER_PORT=4226
 
 ARG CROSS_COMPILER_TARGET_ARCH
-
-# Copy in the cross compiled cargo tools from base
-COPY --from=build /out/tools/* /usr/local/bin/
 
 RUN rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl && \
     rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-gnu  && \
