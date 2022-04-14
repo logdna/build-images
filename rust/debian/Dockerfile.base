@@ -20,6 +20,12 @@ ENV PATH="${CARGO_HOME}/bin:${PATH}"
 COPY llvm-snapshot.gpg.key /llvm-snapshot.gpg.key
 COPY .curlrc /root
 
+# Handly arch/platform lookup env vars
+ENV amd64=x86_64
+ENV arm64=aarch64
+ENV x86_64=amd64
+ENV aarch64=arm64
+
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US
 ENV TERM xterm
