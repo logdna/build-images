@@ -30,17 +30,22 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US
 ENV TERM xterm
 
-RUN DEPS='build-essential binutils ca-certificates curl file gcc g++ libtool m4 libc6-dev make xz-utils locales libexpat1-dev gettext libz-dev libssl-dev autoconf pkg-config bzip2 libsystemd-dev systemd lsof procps git cmake automake hunspell-en-gb hunspell-tools linux-perf clang-12 llvm-12 lldb-12 texinfo procps' \
+RUN DEPS="ca-certificates curl file m4 make locales pkg-config xz-utils cmake \
+          lsof procps git automake hunspell-en-gb hunspell-tools linux-perf \
+          texinfo procps zlib1g-dev clang-${LLVM_MAJOR_VERSION} \
+          llvm-${LLVM_MAJOR_VERSION} lld-${LLVM_MAJOR_VERSION} \
+          libc++-${LLVM_MAJOR_VERSION}-dev lldb-${LLVM_MAJOR_VERSION}\
+          systemd libsystemd-dev patch \
+          libssl-dev bzip2 gcc g++ libtool m4 libc6-dev" \
   && apt-get update \
-  && apt-get install -y --no-install-recommends software-properties-common \
   && apt-key add /llvm-snapshot.gpg.key \
-  && add-apt-repository "deb http://apt.llvm.org/${VARIANT_VERSION}/ llvm-toolchain-${VARIANT_VERSION}-12 main" \
+  && apt-get install -y --no-install-recommends software-properties-common \
+  && add-apt-repository "deb http://apt.llvm.org/${VARIANT_VERSION}/ llvm-toolchain-${VARIANT_VERSION}-${LLVM_MAJOR_VERSION} main" \
   && apt-get update \
   && apt-get install -y --no-install-recommends $DEPS \
   && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
   && locale-gen en_US.UTF-8 \
   && /usr/sbin/update-locale LANG=en_US.UTF-8 \
-  && apt-get remove --purge autoconf libz-dev libexpat1-dev -y \
   && apt-get autoremove -y \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc
