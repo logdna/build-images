@@ -84,6 +84,23 @@ RUN cd /tmp \
     && rm -rf /tmp/*
 
 ## Set up default cargo env vars for cross compiling
+ENV GNU_TRIPLE="${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-gnu"
+ENV MUSL_TRIPLE="${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl"
+
+# Set up basic musl C configuration for to use clang as the linker driver, llvm-ar, ETC
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=clang
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_AR=llvm-ar
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="-Clink-args=-fuse-ld=lld \
+                                                       -Clink-args=--target=aarch64-unknown-linux-musl"
+ENV CC_aarch64_unknown_linux_musl=clang
+ENV CFLAGS_aarch64_unknown_linux_musl="-isystem /usr/include/aarch64-linux-musl"
+
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=clang
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_AR=llvm-ar
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="-Clink-args=-fuse-ld=lld \
+                                                      -Clink-args=--target=x86_64-unknown-linux-musl"
+ENV CC_x86_64_unknown_linux_musl=clang
+ENV CFLAGS_x86_64_unknown_linux_musl="-isystem /usr/include/x86_64-linux-musl"
 
 # Teach cargo to use clang as the linker driver
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=clang
@@ -92,20 +109,11 @@ ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_AR=llvm-ar
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_AR=llvm-ar
 
-# Set up basic C configuration for to use clang as the linker driver
-ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=clang
-ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_AR=llvm-ar
-ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="-C link-args=-fuse-ld=lld \
-                                                       -C link-args=--target=aarch64_unknown_linux_musl"
-ENV CC_aarch64_unknown_linux_musl=clang
-ENV CFLAGS_aarch64_unknown_linux_musl="-isystem /usr/include/aarch64-linux-musl"
-
-ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=clang
-ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_AR=llvm-ar
-ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="-C link-args=-fuse-ld=lld \
-                                                      -C link-args=--target=x86_64_unknown_linux_musl"
-ENV CC_x86_64_unknown_linux_musl=clang
-ENV CFLAGS_x86_64_unknown_linux_musl="-isystem /usr/include/x86_64-linux-musl"
+# Set up basic gnu C configuration for to use clang as the linker driver, llvm-ar, ETC
+ENV CC_${GNU_TRIPLE}="clang"
+ENV CFLAGS_${GNU_TRIPLE}="--target=${GNU_TRIPLE} -fuse-ld=lld -fPIC"
+ENV CXX_${GNU_TRIPLE}="clang++"
+ENV CXXFLAGS_${GNU_TRIPLE}="--target=${GNU_TRIPLE} -fuse-ld=lld"
 
 ENV RUSTC_WRAPPER="/usr/local/bin/sccache"
 ENV CC_WRAPPER="/usr/local/bin/sccache"
