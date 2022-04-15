@@ -20,6 +20,15 @@ ARG SCCACHE_SERVER_PORT=4226
 RUN rustup target add "${!TARGETARCH}-unknown-linux-musl"  && \
     chmod -R a+rw $RUSTUP_HOME $CARGO_HOME
 
+RUN dpkg --add-architecture ${TARGETARCH} && \
+    dpkg --add-architecture ${!CROSS_COMPILER_TARGET_ARCH} && \
+    apt-get update -y && apt-get install --no-install-recommends -y musl-dev:${TARGETARCH}
+
+ENV CC_aarch64_unknown_linux_musl=clang
+ENV CFLAGS_aarch64_unknown_linux_musl="-isystem /usr/include/aarch64-linux-musl"
+ENV CC_x86_64_unknown_linux_musl=clang
+ENV CFLAGS_x86_64_unknown_linux_musl="-isystem /usr/include/x86_64-linux-musl"
+
 # Add cargo-flamegraph and cargo-cache
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset RUSTC_WRAPPER; fi; \
@@ -54,7 +63,13 @@ ARG SCCACHE_ENDPOINT
 ARG SCCACHE_RECACHE
 ARG SCCACHE_SERVER_PORT=4226
 
-ARG CROSS_COMPILER_TARGET_ARCH=x86_64
+ARG CROSS_COMPILER_TARGET_ARCH
+ENV LLVM_SYSROOT="/sysroot/${CROSS_COMPILER_TARGET_ARCH}-musl"
+ENV MUSL_TRIPLE="${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl"
+ENV GNU_TRIPLE="${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-gnu"
+
+# Copy in the cross compiled cargo tools from base
+COPY --from=build /out/tools/* /usr/local/bin/
 
 RUN rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl && \
     rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-gnu  && \
@@ -81,12 +96,26 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     rm -rf /tmp/musl-cross
 
 ## Set up default cargo env vars for cross compiling
-ENV CC_${CROSS_COMPILER_TARGET_ARCH}_unknown_linux_musl=${CROSS_COMPILER_TARGET_ARCH}-linux-musl-gcc \
-    CXX_${CROSS_COMPILER_TARGET_ARCH}_unknown_linux_musl=${CROSS_COMPILER_TARGET_ARCH}-linux-musl-g++ \
-    CC_${CROSS_COMPILER_TARGET_ARCH}_unknown_linux_gnu=gcc \
-    CXX_${CROSS_COMPILER_TARGET_ARCH}_unknown_linux_gnu=g++ \
-    CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-musl-gcc \
-    CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=x86_64-linux-musl-gcc
+ENV MUSL_C_INCLUDES="-isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/${MUSL_TRIPLE}/include/ -isystem $LLVM_SYSROOT/usr/include/linux/"
+ENV MUSL_CXX_INCLUDES="-isystem $LLVM_SYSROOT/usr/include/c++/v1/ -isystem $LLVM_SYSROOT/usr/${MUSL_TRIPLE}/include/ "
+
+ENV COMMON_RUSTFLAGS="-Clinker=clang -Clink-args=-fuse-ld=lld -Lnative=${LLVM_SYSROOT}/usr/lib/"
+ENV SHARED_RUSTFLAGS="${COMMON_RUSTFLAGS}"
+ENV STATIC_RUSTFLAGS="${COMMON_RUSTFLAGS} -Ctarget-feature=+crt-static -Clink-args=-static \
+                      -Clink-args=-nodefaultlibs -Clink-args=-nostdlib -Clink-args=-nostdlib++\
+                      -Clink-args=-stdlib=c++ -Clink-args=-static-libgcc -l static=c++\
+                      -Clink-args=-static-libstdc++"
+
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="${STATIC_RUSTFLAGS} -Clink-args=--target=aarch64-unknown-linux-musl"
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="${STATIC_RUSTFLAGS} -Clink-args=--target=x86_64-unknown-linux-musl"
+
+ENV CC_${MUSL_TRIPLE}="clang"
+ENV CFLAGS_${MUSL_TRIPLE}="--target=${MUSL_TRIPLE} -fuse-ld=lld -static -fPIC -nostdlib -nodefaultlibs -nostdinc ${MUSL_C_INCLUDES} -L ${LLVM_SYSROOT}/usr/${MUSL_TRIPLE}/lib -lc  -L ${LLVM_SYSROOT}/usr/lib/linux/ -lclang_rt.builtins-${CROSS_COMPILER_TARGET_ARCH}"
+ENV CXX_${MUSL_TRIPLE}="clang++"
+ENV CXXFLAGS_${MUSL_TRIPLE}="--target=${MUSL_TRIPLE} -fuse-ld=lld -nostdinc -static-libstdc++ --stdlib=c++ --rtlib=compiler-rt -nodefaultlibs -nostdinc++ ${MUSL_CXX_INCLUDES} ${MUSL_C_INCLUDES}"
+
+ENV PCRE2_SYS_STATIC=1
+ENV SYSTEMD_LIB_DIR="/lib/${CROSS_COMPILER_TARGET_ARCH}-linux-gnu"
 
 ## Install static Zlib
 ARG ZLIB_VERSION=1.2.12
