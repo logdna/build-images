@@ -22,7 +22,7 @@ RUN rustup target add "${!TARGETARCH}-unknown-linux-musl"  && \
 
 RUN dpkg --add-architecture ${TARGETARCH} && \
     dpkg --add-architecture ${!CROSS_COMPILER_TARGET_ARCH} && \
-    apt-get update -y && apt-get install --no-install-recommends -y musl-dev:${TARGETARCH}
+    apt-get -q update -y && apt-get -q install --no-install-recommends -y musl-dev:${TARGETARCH}
 
 ENV CC_aarch64_unknown_linux_musl=clang
 ENV CFLAGS_aarch64_unknown_linux_musl="-isystem /usr/include/aarch64-linux-musl"
@@ -34,13 +34,13 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset RUSTC_WRAPPER; fi; \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
     mkdir -p /out/tools && \
-    cargo install --git https://github.com/flamegraph-rs/flamegraph \
+    cargo install -q --git https://github.com/flamegraph-rs/flamegraph \
         --tag v0.5.1 --locked --root /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
-    cargo install cargo-cache --version 0.8.2  --locked --root /out/tools \
+    cargo install -q cargo-cache --version 0.8.2  --locked --root /out/tools \
         --no-default-features --features ci-autoclean,vendored-libgit \
         --target=${!TARGETARCH}-unknown-linux-musl && \
-    cargo install cargo-audit --version 0.16.0  --locked --root /out/tools \
+    cargo install -q cargo-audit --version 0.16.0  --locked --root /out/tools \
         --no-default-features --features vendored-openssl,vendored-libgit2 \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     sccache --show-stats
@@ -58,7 +58,7 @@ RUN mkdir -p $LLVM_SYSROOT
 RUN cd /tmp && \
     curl --retry 5 -sSfL -O "https://github.com/sabotage-linux/kernel-headers/archive/v$LINUX_HEADER_VERSION.tar.gz" && \
     tar xf v$LINUX_HEADER_VERSION.tar.gz && cd kernel-headers-$LINUX_HEADER_VERSION && \
-    make -j $(nproc) ARCH=${CROSS_COMPILER_TARGET_ARCH} prefix=$LLVM_SYSROOT/usr/ install && \
+    make --silent -j $(nproc) ARCH=${CROSS_COMPILER_TARGET_ARCH} prefix=$LLVM_SYSROOT/usr/ install && \
     cd / && rm -r /tmp/*
 
 # Download and untar musl
@@ -75,11 +75,11 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     ./configure --prefix=$LLVM_SYSROOT/usr/$MUSL_TRIPLE \
                 --syslibdir=$LLVM_SYSROOT/usr/lib \
                 --build=${!BUILDARCH} \
-                --target=$MUSL_TRIPLE && \
-    make -j $(nproc) install-headers
+                --target=$MUSL_TRIPLE 2>&1 >/dev/null && \
+    make --silent -j $(nproc) install-headers
 
 # Configure cmake for building llvm headers, compiler-rt and builtins
-ENV CMAKE_COMMAND="cmake --parallel=$(nproc)"
+ENV CMAKE_COMMAND="cmake -q --parallel=$(nproc) --log-level=WARNING -DCMAKE_RULE_MESSAGES=OFF -DCMAKE_INSTALL_MESSAGE=NEVER"
 ENV CMAKE_HOST_ARGS="-DCMAKE_INSTALL_PREFIX=${LLVM_SYSROOT}/usr -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=lld"
 ENV CMAKE_HOST="$CMAKE_COMMAND $CMAKE_HOST_ARGS"
 ENV CMAKE_TARGET=${CROSS_COMPILER_TARGET_ARCH}-linux-musl
@@ -95,7 +95,7 @@ ENV CMAKE_CROSS_ARGS="${CMAKE_PROGRAMS} ${CMAKE_HOST_ARGS} \
 ENV CMAKE_SHARED_FLAGS="--gcc-toolchain=${LLVM_SYSROOT}/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl \
                         -fuse-ld=lld -nostdinc -nodefaultlibs -nostdlib \
                         -isystem ${LLVM_SYSROOT}/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/ \
-                        -isystem ${LLVM_SYSROOT}/usr/include/"
+                        -isystem ${LLVM_SYSROOT}/usr/include/ -Wno-unused-command-line-argument"
 ENV CMAKE_C_FLAGS="${CMAKE_SHARED_FLAGS} -B${LLVM_SYSROOT}/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib/"
 ENV CMAKE_CXX_FLAGS="-nostdinc++ ${CMAKE_SHARED_FLAGS} --stdlib=libc++ --rtlib=compiler-rt"
 ENV CMAKE_CROSS="$CMAKE_COMMAND $CMAKE_CROSS_ARGS"
@@ -114,30 +114,30 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     $CMAKE_HOST -DLLVM_ENABLE_DOXYGEN=OFF .. && \
     cd $REPOS/clang && mkdir build && cd build && \
     $CMAKE_HOST $CMAKE_LAUNCHERS -DCMAKE_MODULE_PATH="$REPOS/llvm/build/cmake/modules/CMakeFiles;$REPOS/llvm/build/lib/cmake/llvm/" -DLLVM_ENABLE_LIBCXX:BOOL=ON -DLLVM_DIR="$REPOS/llvm" .. && \
-    make -j $(nproc) install-clang-resource-headers && \
+    make --silent -j $(nproc) install-clang-resource-headers && \
     # Generate and install sysroot libc++ headers \
     cd $REPOS/libcxx && mkdir build && cd build && \
     $CMAKE_CROSS $CMAKE_LAUNCHERS -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" -DCMAKE_C_IMPLICIT_LINK_DIRECTORIES= -DCMAKE_CXX_IMPLICIT_LINK_DIRECTORIES= -DLIBCXX_LINK_FLAGS=-fuse-ld=lld -DLIBCXX_GCC_TOOLCHAIN=$LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl -DLIBCXX_HAS_MUSL_LIBC=1 -DLIBCXX_HAS_GCC_S_LIB=0 -DLIBCXX_CXX_ABI=libcxxabi -DLIBCXX_CXX_ABI_INCLUDE_PATHS="$REPOS/libcxxabi/include" -DLIBCXX_CXX_ABI_LIBRARY_PATH="$REPOS/libcxxabi/build/lib" -DLLVM_PATH="$REPOS/llvm" .. && \
-    make -j $(nproc) cxx_abi_headers generate-cxx-headers install-cxx-headers && \
+    make --silent -j $(nproc) cxx_abi_headers generate-cxx-headers install-cxx-headers && \
     # Build and install sysroot compiler-rt \
     cd $REPOS/compiler-rt && mkdir build && cd build && \
     $CMAKE_CROSS $CMAKE_LAUNCHERS -DCMAKE_C_FLAGS="${CMAKE_C_FLAGS}" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_C_IMPLICIT_LINK_DIRECTORIES= -DCMAKE_CXX_IMPLICIT_LINK_DIRECTORIES= -DCOMPILER_RT_BUILD_BUILTINS=ON -DCOMPILER_RT_BUILD_LIBFUZZER=OFF -DCOMPILER_RT_BUILD_MEMPROF=OFF -DCOMPILER_RT_BUILD_PROFILE=OFF -DCOMPILER_RT_BUILD_SANITIZERS=OFF -DCOMPILER_RT_BUILD_XRAY=OFF -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON -DLLVM_PATH="$REPOS/llvm" .. && \
-    make -j $(nproc) install-builtins && \
+    make --silent -j $(nproc) install-builtins && \
     # Finish up musl libc build and install \
     cd /tmp/musl-$MUSL_VERSION && \
-    make -j $(nproc) install && \
+    make --silent -j $(nproc) install && \
     # Build libunwind \
     cd $REPOS/libunwind && mkdir build && cd build && \
     $CMAKE_CROSS $CMAKE_LAUNCHERS -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" -DLIBUNWIND_LINK_FLAGS=-fuse-ld=lld -DCMAKE_LLVM_SYSROOT=${LLVM_SYSROOT} -DLIBUNWIND_GCC_TOOLCHAIN=$LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl -DLIBUNWIND_ENABLE_SHARED=0 -DLLVM_PATH="$REPOS/llvm" .. && \
-    make -j $(nproc) && \
+    make --silent -j $(nproc) && \
     # Build and install libcxxabi \
     cd $REPOS/libcxxabi/ && mkdir build && cd build && \
     $CMAKE_CROSS $CMAKE_LAUNCHERS -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" -DLIBCXXABI_HAS_CXA_THREAD_ATEXIT_IMPL=NO -DLIBCXXABI_LINK_FLAGS=-fuse-ld=lld -DLIBCXXABI_GCC_TOOLCHAIN=$LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl -DCMAKE_SHARED_LINKER_FLAGS="-L$REPOS/libunwind/build/lib" -DLIBCXXABI_USE_LLVM_UNWINDER=1 -DLIBCXXABI_LIBUNWIND_PATH="$REPOS/libunwind" -DLIBCXXABI_LIBCXX_INCLUDES="$REPOS/libcxx/build/include/c++/v1/" -DLLVM_PATH="$REPOS/llvm" .. && \
-    make -j $(nproc) cxxabi_static && \
-    make -j $(nproc) install && \
+    make --silent -j $(nproc) cxxabi_static && \
+    make --silent -j $(nproc) install && \
     # Build and install libc++ \
     cd $REPOS/libcxx/build && \
-    make -j $(nproc) install && \
+    make --silent -j $(nproc) install && \
     cd / && rm -r /tmp/*
 
 
@@ -177,12 +177,12 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     echo 'COMMON_CONFIG="CC=$(CC_WRAPPER) $(CC)"' >> config.mak && \
     echo 'COMMON_CONFIG += "CXX=$(CC_WRAPPER) $(CXX)"' >> config.mak && \
     echo 'COMMON_CONFIG += "STAGE_CC_WRAPPER=$(CC_WRAPPER)"' >> config.mak && \
-    make install "-j$(nproc)" \
+    make --silent install "-j$(nproc)" \
         CC_WRAPPER=$CC_WRAPPER \
         DL_CMD='curl --retry 3 -sSfL -C - -o' \
         LINUX_HEADERS_SITE=https://ci-mirrors.rust-lang.org/rustc/sabotage-linux-tarballs \
         OUTPUT=/usr/local/ \
-        TARGET=${CROSS_COMPILER_TARGET_ARCH}-linux-musl && \
+        TARGET=${CROSS_COMPILER_TARGET_ARCH}-linux-musl > build.log && \
     sccache --show-stats && \
     rm -rf /tmp/musl-cross
 
