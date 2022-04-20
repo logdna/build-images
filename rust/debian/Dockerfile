@@ -141,6 +141,31 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     cd / && rm -r /tmp/*
 
 
+## Install static Zlib
+ARG ZLIB_VERSION=1.2.12
+
+RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
+    if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
+    if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
+    mkdir -p /tmp/zlib && cd /tmp/zlib && \
+    curl -fLO "http://zlib.net/zlib-$ZLIB_VERSION.tar.gz" && \
+    tar xzf "zlib-$ZLIB_VERSION.tar.gz" && cd "zlib-$ZLIB_VERSION" && \
+    echo "Building zlib" && \
+    cd /tmp/zlib/zlib-$ZLIB_VERSION && \
+    CC="$CC_WRAPPER clang --target=${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl" \
+    CFLAGS="-nostdinc -isystem $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/" \
+    LDSHARED="lld" AR=llvm-ar RANLIB=llvm-ranlib \
+    LDFLAGS="-L$LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib" \
+    # Legacy path \
+    ./configure --static --shared --prefix=/usr/local/musl || cat configure.log && \
+    make -j$(nproc) install && \
+    # sysroot \
+    ./configure --static --shared --prefix=$LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl || cat configure.log && \
+    make -j$(nproc) install && \
+    sccache --show-stats && \
+    rm -r /tmp/zlib
+
+
 #############################################################################
 ## The Cross Compile image
 #############################################################################
@@ -149,6 +174,7 @@ FROM --platform=${TARGETPLATFORM} ${BASE_IMAGE}
 # Copy in the cross compiled cargo tools from base
 COPY --from=build /out/tools/* /usr/local/bin/
 COPY --from=build /sysroot /sysroot
+COPY --from=build /usr/local/musl /usr/local/musl
 
 ARG BUILDARCH
 ARG TARGETARCH
@@ -186,19 +212,27 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     sccache --show-stats && \
     rm -rf /tmp/musl-cross
 
-## Install static Zlib
-ARG ZLIB_VERSION=1.2.12
-RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
-    if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
-    if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
-    echo "Building zlib" && \
-    cd /tmp && \
-    curl -fLO "http://zlib.net/zlib-$ZLIB_VERSION.tar.gz" && \
-    tar xzf "zlib-$ZLIB_VERSION.tar.gz" && cd "zlib-$ZLIB_VERSION" && \
-    CC="$CC_WRAPPER ${CROSS_COMPILER_TARGET_ARCH}-linux-musl-gcc" ./configure --static --prefix=/usr/local/musl && \
-    make -j$(nproc) && make install && \
-    sccache --show-stats && \
-    rm -r /tmp/*
+## Set up default cargo env vars for cross compiling
+ENV MUSL_C_INCLUDES="-isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/${MUSL_TRIPLE}/include/ -isystem $LLVM_SYSROOT/usr/include/linux/"
+ENV MUSL_CXX_INCLUDES="-isystem $LLVM_SYSROOT/usr/include/c++/v1/ -isystem $LLVM_SYSROOT/usr/${MUSL_TRIPLE}/include/ "
+
+ENV COMMON_RUSTFLAGS="-Clinker=clang -Clink-args=-fuse-ld=lld -Lnative=${LLVM_SYSROOT}/usr/lib/"
+ENV SHARED_RUSTFLAGS="${COMMON_RUSTFLAGS}"
+ENV STATIC_RUSTFLAGS="${COMMON_RUSTFLAGS} -Ctarget-feature=+crt-static -Clink-args=-static \
+                      -Clink-args=-nodefaultlibs -Clink-args=-nostdlib -Clink-args=-nostdlib++\
+                      -Clink-args=-stdlib=c++ -Clink-args=-static-libgcc -l static=c++\
+                      -Clink-args=-static-libstdc++"
+
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="${STATIC_RUSTFLAGS} -Clink-args=--target=aarch64-unknown-linux-musl"
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="${STATIC_RUSTFLAGS} -Clink-args=--target=x86_64-unknown-linux-musl"
+
+ENV CC_${MUSL_TRIPLE}="clang"
+ENV CFLAGS_${MUSL_TRIPLE}="--target=${MUSL_TRIPLE} -fuse-ld=lld -static -fPIC -nostdlib -nodefaultlibs -nostdinc ${MUSL_C_INCLUDES} -L ${LLVM_SYSROOT}/usr/${MUSL_TRIPLE}/lib -lc  -L ${LLVM_SYSROOT}/usr/lib/linux/ -lclang_rt.builtins-${CROSS_COMPILER_TARGET_ARCH}"
+ENV CXX_${MUSL_TRIPLE}="clang++"
+ENV CXXFLAGS_${MUSL_TRIPLE}="--target=${MUSL_TRIPLE} -fuse-ld=lld -nostdinc -static-libstdc++ --stdlib=c++ --rtlib=compiler-rt -nodefaultlibs -nostdinc++ ${MUSL_CXX_INCLUDES} ${MUSL_C_INCLUDES}"
+
+ENV PCRE2_SYS_STATIC=1
+ENV SYSTEMD_LIB_DIR="/lib/${CROSS_COMPILER_TARGET_ARCH}-linux-gnu"
 
 ENV PKG_CONFIG_ALLOW_CROSS=true \
     PKG_CONFIG_ALL_STATIC=true \
