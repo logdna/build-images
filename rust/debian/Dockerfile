@@ -166,6 +166,28 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     rm -r /tmp/zlib
 
 
+## Install static -fPIC Rocksdb
+RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
+    if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
+    if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
+    echo "Building rocksdb" && \
+    git clone https://github.com/facebook/rocksdb.git --branch v6.22.1 --depth=1 /tmp/rocksdb; \
+    cd /tmp/rocksdb && \
+    export USE_CLANG=1 TARGET_OS=Linux PORTABLE=1 AR=llvm-ar; \
+    export TARGET_ARCHITECTURE=${CROSS_COMPILER_TARGET_ARCH}; \
+    export C_INCLUDES="-isystem $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/ -isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/include/"; \
+    export CC="$CC_WRAPPER clang --target=${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl"; \
+    export EXTRA_CFLAGS="-nostdinc -fPIC $C_INCLUDES -nostdlib -nostdlib++ -nodefaultlibs -Wno-unused-command-line-argument"; \
+    export CXX="$CC_WRAPPER clang++ -nostdlib++ -fuse-ld=lld --target=${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl"; \
+    export EXTRA_CXXFLAGS="-nostdinc -nostdinc++ -fPIC -isystem $LLVM_SYSROOT/usr/include/c++/v1/ -isystem $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/ -D _LIBCPP_HAS_MUSL_LIBC $C_INCLUDES -Wno-unused-command-line-argument "; \
+    export CFLAGS="$EXTRA_CFLAGS -L$LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib"; \
+    DISABLE_WARNING_AS_ERROR=1 make -j$(nproc) static_lib && \
+    cp librocksdb.a* $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib && \
+    cp -r include/* $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/ && \
+    sccache --show-stats && \
+    rm -R /tmp/rocksdb/
+
+
 #############################################################################
 ## The Cross Compile image
 #############################################################################
@@ -187,6 +209,15 @@ ARG SCCACHE_RECACHE
 ARG SCCACHE_SERVER_PORT=4226
 
 ARG CROSS_COMPILER_TARGET_ARCH
+ENV LLVM_SYSROOT="/sysroot/${CROSS_COMPILER_TARGET_ARCH}-musl"
+ENV MUSL_TRIPLE="${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl"
+ENV GNU_TRIPLE="${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-gnu"
+
+# Legacy rocksdb paths
+RUN mkdir -p /usr/local/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/ && \
+    cp $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib/librocksdb.a* /usr/local/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/lib && \
+    cp -r $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/rocksdb /usr/local/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/include/ && \
+    cp -r $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/rocksdb /usr/include/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/
 
 RUN rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl && \
     rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-gnu  && \
@@ -238,32 +269,5 @@ ENV PKG_CONFIG_ALLOW_CROSS=true \
     PKG_CONFIG_ALL_STATIC=true \
     LIBZ_SYS_STATIC=1 \
     PLATFORM_LDFLAGS="-static-libstdc++ -static-libgcc"
-
-## Install static -fPIC Rocksdb
-RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
-    if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
-    if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
-    echo "Building rocksdb" && \
-    cd /tmp && \
-    git clone https://github.com/facebook/rocksdb.git && \
-    cd rocksdb && \
-    git checkout v6.22.1 && \
-    PORTABLE=1 CCFLAGS=-fPIC CXXFLAGS=-fPIC \
-    CC="$CC_WRAPPER ${CROSS_COMPILER_TARGET_ARCH}-linux-musl-gcc" CXX="$CC_WRAPPER ${CROSS_COMPILER_TARGET_ARCH}-linux-musl-g++" \
-    make -j$(nproc) static_lib && \
-    mkdir -p /usr/local/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/lib && \
-    mkdir /usr/local/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/include && \
-    cp librocksdb.a* /usr/local/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/lib && \
-    cp -r include /usr/local/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/ && \
-    cp -r include/* /usr/include/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/ && \
-    sccache --show-stats && \
-    rm -R /tmp/rocksdb/
-
-ENV CC_${CROSS_COMPILER_TARGET_ARCH}_unknown_linux_musl=${CROSS_COMPILER_TARGET_ARCH}-linux-musl-gcc \
-    CXX_${CROSS_COMPILER_TARGET_ARCH}_unknown_linux_musl=${CROSS_COMPILER_TARGET_ARCH}-linux-musl-g++ \
-    CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-musl-gcc \
-    CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=x86_64-linux-musl-gcc
-
-ENV PCRE2_SYS_STATIC=1
 
 CMD ["bash"]
