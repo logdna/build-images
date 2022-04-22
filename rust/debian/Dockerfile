@@ -51,6 +51,8 @@ ARG MUSL_VERSION="1.2.2"
 ENV LLVM_SYSROOT="/sysroot/${CROSS_COMPILER_TARGET_ARCH}-musl"
 ENV MUSL_TRIPLE="${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl"
 
+ENV MAKEFLAGS=--silent -j $(nproc)
+
 # Create LLVM_SYSROOT
 RUN mkdir -p $LLVM_SYSROOT
 
@@ -58,7 +60,7 @@ RUN mkdir -p $LLVM_SYSROOT
 RUN cd /tmp && \
     curl --retry 5 -sSfL -O "https://github.com/sabotage-linux/kernel-headers/archive/v$LINUX_HEADER_VERSION.tar.gz" && \
     tar xf v$LINUX_HEADER_VERSION.tar.gz && cd kernel-headers-$LINUX_HEADER_VERSION && \
-    make --silent -j $(nproc) ARCH=${CROSS_COMPILER_TARGET_ARCH} prefix=$LLVM_SYSROOT/usr/ install && \
+    make ARCH=${CROSS_COMPILER_TARGET_ARCH} prefix=$LLVM_SYSROOT/usr/ install && \
     cd / && rm -r /tmp/*
 
 # Download and untar musl
@@ -76,7 +78,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
                 --syslibdir=$LLVM_SYSROOT/usr/lib \
                 --build=${!BUILDARCH} \
                 --target=$MUSL_TRIPLE 2>&1 >/dev/null && \
-    make --silent -j $(nproc) install-headers
+    make install-headers
 
 # Configure cmake for building llvm headers, compiler-rt and builtins
 ENV CMAKE_COMMAND="cmake -q --parallel=$(nproc) --log-level=WARNING -DCMAKE_RULE_MESSAGES=OFF -DCMAKE_INSTALL_MESSAGE=NEVER"
@@ -114,30 +116,30 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     $CMAKE_HOST -DLLVM_ENABLE_DOXYGEN=OFF .. && \
     cd $REPOS/clang && mkdir build && cd build && \
     $CMAKE_HOST $CMAKE_LAUNCHERS -DCMAKE_MODULE_PATH="$REPOS/llvm/build/cmake/modules/CMakeFiles;$REPOS/llvm/build/lib/cmake/llvm/" -DLLVM_ENABLE_LIBCXX:BOOL=ON -DLLVM_DIR="$REPOS/llvm" .. && \
-    make --silent -j $(nproc) install-clang-resource-headers && \
+    make install-clang-resource-headers && \
     # Generate and install sysroot libc++ headers \
     cd $REPOS/libcxx && mkdir build && cd build && \
     $CMAKE_CROSS $CMAKE_LAUNCHERS -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" -DCMAKE_C_IMPLICIT_LINK_DIRECTORIES= -DCMAKE_CXX_IMPLICIT_LINK_DIRECTORIES= -DLIBCXX_LINK_FLAGS=-fuse-ld=lld -DLIBCXX_GCC_TOOLCHAIN=$LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl -DLIBCXX_HAS_MUSL_LIBC=1 -DLIBCXX_HAS_GCC_S_LIB=0 -DLIBCXX_CXX_ABI=libcxxabi -DLIBCXX_CXX_ABI_INCLUDE_PATHS="$REPOS/libcxxabi/include" -DLIBCXX_CXX_ABI_LIBRARY_PATH="$REPOS/libcxxabi/build/lib" -DLLVM_PATH="$REPOS/llvm" .. && \
-    make --silent -j $(nproc) cxx_abi_headers generate-cxx-headers install-cxx-headers && \
+    make cxx_abi_headers generate-cxx-headers install-cxx-headers && \
     # Build and install sysroot compiler-rt \
     cd $REPOS/compiler-rt && mkdir build && cd build && \
     $CMAKE_CROSS $CMAKE_LAUNCHERS -DCMAKE_C_FLAGS="${CMAKE_C_FLAGS}" -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_C_IMPLICIT_LINK_DIRECTORIES= -DCMAKE_CXX_IMPLICIT_LINK_DIRECTORIES= -DCOMPILER_RT_BUILD_BUILTINS=ON -DCOMPILER_RT_BUILD_LIBFUZZER=OFF -DCOMPILER_RT_BUILD_MEMPROF=OFF -DCOMPILER_RT_BUILD_PROFILE=OFF -DCOMPILER_RT_BUILD_SANITIZERS=OFF -DCOMPILER_RT_BUILD_XRAY=OFF -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON -DLLVM_PATH="$REPOS/llvm" .. && \
-    make --silent -j $(nproc) install-builtins && \
+    make install-builtins && \
     # Finish up musl libc build and install \
     cd /tmp/musl-$MUSL_VERSION && \
-    make --silent -j $(nproc) install && \
+    make install && \
     # Build libunwind \
     cd $REPOS/libunwind && mkdir build && cd build && \
     $CMAKE_CROSS $CMAKE_LAUNCHERS -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" -DLIBUNWIND_LINK_FLAGS=-fuse-ld=lld -DCMAKE_LLVM_SYSROOT=${LLVM_SYSROOT} -DLIBUNWIND_GCC_TOOLCHAIN=$LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl -DLIBUNWIND_ENABLE_SHARED=0 -DLLVM_PATH="$REPOS/llvm" .. && \
-    make --silent -j $(nproc) && \
+    make && \
     # Build and install libcxxabi \
     cd $REPOS/libcxxabi/ && mkdir build && cd build && \
     $CMAKE_CROSS $CMAKE_LAUNCHERS -DCMAKE_C_FLAGS="$CMAKE_C_FLAGS" -DCMAKE_CXX_FLAGS="$CMAKE_CXX_FLAGS" -DLIBCXXABI_HAS_CXA_THREAD_ATEXIT_IMPL=NO -DLIBCXXABI_LINK_FLAGS=-fuse-ld=lld -DLIBCXXABI_GCC_TOOLCHAIN=$LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl -DCMAKE_SHARED_LINKER_FLAGS="-L$REPOS/libunwind/build/lib" -DLIBCXXABI_USE_LLVM_UNWINDER=1 -DLIBCXXABI_LIBUNWIND_PATH="$REPOS/libunwind" -DLIBCXXABI_LIBCXX_INCLUDES="$REPOS/libcxx/build/include/c++/v1/" -DLLVM_PATH="$REPOS/llvm" .. && \
-    make --silent -j $(nproc) cxxabi_static && \
-    make --silent -j $(nproc) install && \
+    make cxxabi_static && \
+    make install && \
     # Build and install libc++ \
     cd $REPOS/libcxx/build && \
-    make --silent -j $(nproc) install && \
+    make install && \
     cd / && rm -r /tmp/*
 
 
@@ -158,10 +160,10 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     LDFLAGS="-L$LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib" \
     # Legacy path \
     ./configure --static --shared --prefix=/usr/local/musl || cat configure.log && \
-    make -j$(nproc) install && \
+    make install && \
     # sysroot \
     ./configure --static --shared --prefix=$LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl || cat configure.log && \
-    make -j$(nproc) install && \
+    make install && \
     sccache --show-stats && \
     rm -r /tmp/zlib
 
@@ -181,7 +183,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     export CXX="$CC_WRAPPER clang++ -nostdlib++ -fuse-ld=lld --target=${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl"; \
     export EXTRA_CXXFLAGS="-nostdinc -nostdinc++ -fPIC -isystem $LLVM_SYSROOT/usr/include/c++/v1/ -isystem $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/ -D _LIBCPP_HAS_MUSL_LIBC $C_INCLUDES -Wno-unused-command-line-argument "; \
     export CFLAGS="$EXTRA_CFLAGS -L$LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib"; \
-    DISABLE_WARNING_AS_ERROR=1 make -j$(nproc) static_lib && \
+    DISABLE_WARNING_AS_ERROR=1 make static_lib && \
     cp librocksdb.a* $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib && \
     cp -r include/* $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/ && \
     sccache --show-stats && \
