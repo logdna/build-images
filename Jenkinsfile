@@ -53,7 +53,7 @@ pipeline {
         }
         agent {
           node {
-            label 'rust-arm64'
+            label 'rust-x86_64'
             customWorkspace "docker-images-${BUILD_NUMBER}"
           }
         }
@@ -130,7 +130,7 @@ pipeline {
         }
         agent {
           node {
-            label 'rust-arm64'
+            label 'rust-x86_64'
             customWorkspace "docker-images-${BUILD_NUMBER}"
           }
         }
@@ -177,7 +177,7 @@ pipeline {
         }
         agent {
           node {
-            label 'rust-arm64'
+            label 'rust-x86_64'
             customWorkspace "docker-images-${BUILD_NUMBER}"
           }
         }
@@ -325,7 +325,7 @@ pipeline {
         }
         agent {
           node {
-            label 'rust-arm64'
+            label 'rust-x86_64'
             customWorkspace "docker-images-${BUILD_NUMBER}"
           }
         }
