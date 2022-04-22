@@ -51,7 +51,6 @@ ARG MUSL_VERSION="1.2.2"
 ENV LLVM_SYSROOT="/sysroot/${CROSS_COMPILER_TARGET_ARCH}-musl"
 ENV MUSL_TRIPLE="${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl"
 
-ENV MAKEFLAGS=--silent -j $(nproc)
 
 # Create LLVM_SYSROOT
 RUN mkdir -p $LLVM_SYSROOT
@@ -60,6 +59,7 @@ RUN mkdir -p $LLVM_SYSROOT
 RUN cd /tmp && \
     curl --retry 5 -sSfL -O "https://github.com/sabotage-linux/kernel-headers/archive/v$LINUX_HEADER_VERSION.tar.gz" && \
     tar xf v$LINUX_HEADER_VERSION.tar.gz && cd kernel-headers-$LINUX_HEADER_VERSION && \
+    MAKEFLAGS="--silent -j $(nproc)" && \
     make ARCH=${CROSS_COMPILER_TARGET_ARCH} prefix=$LLVM_SYSROOT/usr/ install && \
     cd / && rm -r /tmp/*
 
@@ -70,6 +70,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     curl -fSLo /tmp/musl.tar.gz https://www.musl-libc.org/releases/musl-$MUSL_VERSION.tar.gz && \
     tar -C /tmp -xf /tmp/musl.tar.gz && \
     cd /tmp/musl-$MUSL_VERSION && \
+    MAKEFLAGS="--silent -j $(nproc)" && \
     AR=llvm-ar RANLIB=llvm-ranlib CC="$CC_WRAPPER clang" \
     CFLAGS="--target=$MUSL_TRIPLE" \
     LDFLAGS="-fuse-ld=lld -L$LLVM_SYSROOT/usr/lib/linux/" \
@@ -107,6 +108,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
     if [ -z "$CC_WRAPPER" ]; then export CMAKE_LAUNCHERS="-DCMAKE_C_COMPILER_LAUNCHER=$CC_WRAPPER -DCMAKE_CXX_COMPILER_LAUNCHER=$CC_WRAPPER"; fi; \
     # Download and extract LLVM tarball for ${LLVM_VERSION} \
+    export MAKEFLAGS="--silent -j $(nproc)" && \
     export REPOS=/tmp/llvm-project && \
     cd /tmp && mkdir -p $REPOS && \
     curl -fSLO https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/llvm-project-${LLVM_VERSION}.src.tar.xz && \
@@ -149,15 +151,16 @@ ARG ZLIB_VERSION=1.2.12
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
+    export MAKEFLAGS="--silent -j $(nproc)" && \
     mkdir -p /tmp/zlib && cd /tmp/zlib && \
     curl -fLO "http://zlib.net/zlib-$ZLIB_VERSION.tar.gz" && \
     tar xzf "zlib-$ZLIB_VERSION.tar.gz" && cd "zlib-$ZLIB_VERSION" && \
     echo "Building zlib" && \
     cd /tmp/zlib/zlib-$ZLIB_VERSION && \
-    CC="$CC_WRAPPER clang --target=${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl" \
+    export CC="$CC_WRAPPER clang --target=${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl" \
     CFLAGS="-nostdinc -isystem $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/" \
     LDSHARED="lld" AR=llvm-ar RANLIB=llvm-ranlib \
-    LDFLAGS="-L$LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib" \
+    LDFLAGS="-L$LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib"; \
     # Legacy path \
     ./configure --static --shared --prefix=/usr/local/musl || cat configure.log && \
     make install && \
@@ -175,6 +178,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     echo "Building rocksdb" && \
     git clone https://github.com/facebook/rocksdb.git --branch v6.22.1 --depth=1 /tmp/rocksdb; \
     cd /tmp/rocksdb && \
+    export MAKEFLAGS="--silent -j $(nproc)"; \
     export USE_CLANG=1 TARGET_OS=Linux PORTABLE=1 AR=llvm-ar; \
     export TARGET_ARCHITECTURE=${CROSS_COMPILER_TARGET_ARCH}; \
     export C_INCLUDES="-isystem $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/ -isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/include/"; \
