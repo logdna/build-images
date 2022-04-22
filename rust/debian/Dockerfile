@@ -223,26 +223,6 @@ RUN rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl && \
     rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-gnu  && \
     chmod -R a+rw $RUSTUP_HOME $CARGO_HOME
 
-## Install a musl cross compiler for ${CROSS_COMPILER_TARGET_ARCH} using musl-cross-make
-RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
-    if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
-    if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
-    mkdir /tmp/musl-cross && cd /tmp/musl-cross && \
-    curl --retry 3 -sSfL "https://github.com/richfelker/musl-cross-make/archive/v0.9.9.tar.gz" -O &&\
-    tar --strip-components=1 -xzf "v0.9.9.tar.gz" && \
-    echo "GCC_CONFIG += --enable-default-pie" >> config.mak && \
-    echo 'COMMON_CONFIG="CC=$(CC_WRAPPER) $(CC)"' >> config.mak && \
-    echo 'COMMON_CONFIG += "CXX=$(CC_WRAPPER) $(CXX)"' >> config.mak && \
-    echo 'COMMON_CONFIG += "STAGE_CC_WRAPPER=$(CC_WRAPPER)"' >> config.mak && \
-    make --silent install "-j$(nproc)" \
-        CC_WRAPPER=$CC_WRAPPER \
-        DL_CMD='curl --retry 3 -sSfL -C - -o' \
-        LINUX_HEADERS_SITE=https://ci-mirrors.rust-lang.org/rustc/sabotage-linux-tarballs \
-        OUTPUT=/usr/local/ \
-        TARGET=${CROSS_COMPILER_TARGET_ARCH}-linux-musl > build.log && \
-    sccache --show-stats && \
-    rm -rf /tmp/musl-cross
-
 ## Set up default cargo env vars for cross compiling
 ENV MUSL_C_INCLUDES="-isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/${MUSL_TRIPLE}/include/ -isystem $LLVM_SYSROOT/usr/include/linux/"
 ENV MUSL_CXX_INCLUDES="-isystem $LLVM_SYSROOT/usr/include/c++/v1/ -isystem $LLVM_SYSROOT/usr/${MUSL_TRIPLE}/include/ "
