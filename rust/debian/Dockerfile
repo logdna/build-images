@@ -219,11 +219,29 @@ ENV LLVM_SYSROOT="/sysroot/${CROSS_COMPILER_TARGET_ARCH}-musl"
 ENV MUSL_TRIPLE="${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl"
 ENV GNU_TRIPLE="${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-gnu"
 
-# Legacy rocksdb paths
-RUN mkdir -p /usr/local/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/ && \
+# Copy files around to ensure changes are compatible with agent 3.3 and 3.4
+RUN mkdir -p /usr/local/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/include && \
+    mkdir -p /usr/local/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/lib && \
     cp $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib/librocksdb.a* /usr/local/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/lib && \
-    cp -r $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/rocksdb /usr/local/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/include/ && \
-    cp -r $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/rocksdb /usr/include/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/
+    cp -r $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/rocksdb/ /usr/local/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/include/ && \
+    cp -r $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/rocksdb/ /usr/include/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/ && \
+    cp -r $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/* /usr/local/include/ && \
+    cp -r $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl /usr/local/${CROSS_COMPILER_TARGET_ARCH}-linux-musl && \
+    cp -r $LLVM_SYSROOT/usr/lib/* /usr/local/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/lib/ && \
+    ln -s /usr/lib/llvm-${LLVM_MAJOR_VERSION}/bin/llvm-strip /usr/local/bin/${CROSS_COMPILER_TARGET_ARCH}-linux-gnu-strip && \
+    ln -s /usr/lib/llvm-${LLVM_MAJOR_VERSION}/bin/llvm-strip /usr/local/bin/${CROSS_COMPILER_TARGET_ARCH}-linux-musl-strip && \
+    # Build a fake libstdc++ from libc++ and libc++abi to work around some rust crate build.rs deficiencies \
+    printf "create /usr/local/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/lib/libstdc++.a\naddlib /usr/local/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/lib/libc++.a\naddlib /usr/local/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/lib/libc++abi.a\nsave\nend" | llvm-ar -M && \
+    printf "create $LLVM_SYSROOT/usr/lib/libstdc++.a\naddlib $LLVM_SYSROOT/usr/lib/libc++.a\naddlib $LLVM_SYSROOT/usr/lib/libc++abi.a\nsave\nend" | llvm-ar -M ;
+
+# Some legacy compat linkers
+RUN printf "#!/usr/bin/env bash\nclang -fuse-ld=lld --target=aarch64-unknown-linux-musl \$@" > /usr/local/bin/aarch64-unknown-linux-musl-clang && \
+    chmod +x /usr/local/bin/aarch64-unknown-linux-musl-clang && \
+    printf "#!/usr/bin/env bash\nclang -fuse-ld=lld --target=x86_64-unknown-linux-musl \$@" > /usr/local/bin/x86_64-unknown-linux-musl-clang && \
+    chmod +x /usr/local/bin/x86_64-unknown-linux-musl-clang
+
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER="/usr/local/bin/aarch64-unknown-linux-musl-clang"
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER="/usr/local/bin/x86_64-unknown-linux-musl-clang"
 
 RUN rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl && \
     rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-gnu  && \
@@ -237,16 +255,21 @@ ENV COMMON_RUSTFLAGS="-Clinker=clang -Clink-args=-fuse-ld=lld -Lnative=${LLVM_SY
 ENV SHARED_RUSTFLAGS="${COMMON_RUSTFLAGS}"
 ENV STATIC_RUSTFLAGS="${COMMON_RUSTFLAGS} -Ctarget-feature=+crt-static -Clink-args=-static \
                       -Clink-args=-nodefaultlibs -Clink-args=-nostdlib -Clink-args=-nostdlib++\
-                      -Clink-args=-stdlib=c++ -Clink-args=-static-libgcc -l static=c++\
-                      -Clink-args=-static-libstdc++"
+                      -Clink-args=-stdlib=c++ -l static=c++ -l static=c++abi \
+                      -Lnative=$LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib"
 
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="${STATIC_RUSTFLAGS} -Clink-args=--target=aarch64-unknown-linux-musl"
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="${STATIC_RUSTFLAGS} -Clink-args=--target=x86_64-unknown-linux-musl"
 
-ENV CC_${MUSL_TRIPLE}="clang"
-ENV CFLAGS_${MUSL_TRIPLE}="--target=${MUSL_TRIPLE} -fuse-ld=lld -static -fPIC -nostdlib -nodefaultlibs -nostdinc ${MUSL_C_INCLUDES} -L ${LLVM_SYSROOT}/usr/${MUSL_TRIPLE}/lib -lc  -L ${LLVM_SYSROOT}/usr/lib/linux/ -lclang_rt.builtins-${CROSS_COMPILER_TARGET_ARCH}"
-ENV CXX_${MUSL_TRIPLE}="clang++"
-ENV CXXFLAGS_${MUSL_TRIPLE}="--target=${MUSL_TRIPLE} -fuse-ld=lld -nostdinc -static-libstdc++ --stdlib=c++ --rtlib=compiler-rt -nodefaultlibs -nostdinc++ ${MUSL_CXX_INCLUDES} ${MUSL_C_INCLUDES}"
+ENV CC_aarch64_unknown_linux_musl="clang"
+ENV CFLAGS_aarch64_unknown_linux_musl="--target=aarch64-unknown-linux-musl -fuse-ld=lld -static -fPIC -nostdlib -nodefaultlibs -nostdinc -isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/aarch64-unknown-linux-musl/include/ -isystem $LLVM_SYSROOT/usr/include/linux/ -L ${LLVM_SYSROOT}/usr/aarch64-unknown-linux-musl/lib -lc  -L ${LLVM_SYSROOT}/usr/lib/linux/ -lclang_rt.builtins-aarch64"
+ENV CXX_aarch64_unknown_linux_musl="clang++"
+ENV CXXFLAGS_aarch64_unknown_linux_musl="--target=aarch64-unknown-linux-musl -fuse-ld=lld -nostdinc -static-libstdc++ --stdlib=c++ --rtlib=compiler-rt -nodefaultlibs -nostdinc++ -isystem $LLVM_SYSROOT/usr/include/c++/v1/ -isystem $LLVM_SYSROOT/usr/aarch64-unknown-linux-musl/include/  -isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/aarch64-unknown-linux-musl/include/ -isystem $LLVM_SYSROOT/usr/include/linux/ "
+
+ENV CC_x86_64_unknown_linux_musl="clang"
+ENV CFLAGS_x86_64_unknown_linux_musl="--target=x86_64-unknown-linux-musl -fuse-ld=lld -static -fPIC -nostdlib -nodefaultlibs -nostdinc -isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/x86_64-unknown-linux-musl/include/ -isystem $LLVM_SYSROOT/usr/include/linux/ -L ${LLVM_SYSROOT}/usr/x86_64-unknown-linux-musl/lib -lc  -L ${LLVM_SYSROOT}/usr/lib/linux/ -lclang_rt.builtins-x86_64"
+ENV CXX_x86_64_unknown_linux_musl="clang++"
+ENV CXXFLAGS_x86_64_unknown_linux_musl="--target=x86_64-unknown-linux-musl -fuse-ld=lld -nostdinc -static-libstdc++ --stdlib=c++ --rtlib=compiler-rt -nodefaultlibs -nostdinc++ -isystem $LLVM_SYSROOT/usr/include/c++/v1/ -isystem $LLVM_SYSROOT/usr/x86_64-unknown-linux-musl/include/  -isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/x86_64-unknown-linux-musl/include/ -isystem $LLVM_SYSROOT/usr/include/linux/ "
 
 ENV PCRE2_SYS_STATIC=1
 ENV SYSTEMD_LIB_DIR="/lib/${CROSS_COMPILER_TARGET_ARCH}-linux-gnu"
