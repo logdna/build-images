@@ -13,7 +13,8 @@ declare -A platforms=( ["x86_64"]="linux/amd64" ["aarch64"]="linux/arm64")
 CROSS_COMPILER_TARGET_ARCHS="x86_64 aarch64"
 
 # Default to the host ARCH
-HOST_ARCH=$(uname -m)
+HOST_ARCH="$(uname -m)"
+
 # special case handling for M1s
 if [[ $HOST_ARCH == 'arm64' ]]; then
     HOST_ARCH=${HOST_ARCH:-'aarch64'}
@@ -23,19 +24,35 @@ fi
 
 PLATFORM=${PLATFORM:-${platforms[$HOST_ARCH]}}
 VARIANT_VERSION=${VARIANT_VERSION:-buster}
+
+# Put aws creds in file so we can securely use them in docker build
+AWS_CREDENTIALS_FILE=${AWS_CREDENTIALS_FILE:-"$HOME/.aws/credentials"}
+
+if [ -n "${AWS_SECRET_ACCESS_KEY}" ] && [ -n "${AWS_ACCESS_KEY_ID}" ]; then
+    echo "" > "$PWD/.aws_creds"
+    chmod 600 "$PWD/.aws_creds"
+    { echo "[default]";
+      echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID";
+      echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY"; } >> "$PWD/.aws_creds";
+    aws_secret_arg="--secret id=aws,src=$PWD/.aws_creds"
+elif [ -t "${AWS_CREDENTIALS_FILE}" ]; then
+    aws_secret_arg="--secret id=aws,src=${AWS_CREDENTIALS_FILE}"
+else
+    aws_secret_arg=""
+fi
+
 time (
 echo
 echo ===================================================
 echo
+
 # shellcheck disable=SC2086
-docker build --platform "$PLATFORM" \
+docker build --platform "$PLATFORM" $aws_secret_arg \
              --progress=plain \
              --build-arg "SCCACHE_BUCKET=${SCCACHE_BUCKET}" \
              --build-arg "SCCACHE_REGION=${SCCACHE_REGION}" \
              --build-arg "SCCACHE_ENDPOINT=${SCCACHE_ENDPOINT}" \
              --build-arg "SCCACHE_RECACHE=${SCCACHE_RECACHE}" \
-             --build-arg "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" \
-             --build-arg "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" \
              --build-arg "VARIANT_VERSION=${VARIANT_VERSION}" \
              -t "docker.io/logdna/build-images:rust-${VARIANT_VERSION}-1-stable-base-${HOST_ARCH}" \
              -f rust/debian/Dockerfile.base ${PULL_OPTS} rust/debian
@@ -44,13 +61,12 @@ echo ===================================================
 echo
 for CROSS_COMPILER_TARGET_ARCH in $CROSS_COMPILER_TARGET_ARCHS
 do
-    docker build --platform "$PLATFORM" \
+    # shellcheck disable=SC2086
+    docker build --platform "$PLATFORM" $aws_secret_arg \
                 --progress=plain \
                 --build-arg "SCCACHE_BUCKET=${SCCACHE_BUCKET}" \
                 --build-arg "SCCACHE_REGION=${SCCACHE_REGION}" \
                 --build-arg "SCCACHE_ENDPOINT=${SCCACHE_ENDPOINT}" \
-                --build-arg "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" \
-                --build-arg "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" \
                 --build-arg "CROSS_COMPILER_TARGET_ARCH=${CROSS_COMPILER_TARGET_ARCH}" \
                 --build-arg "BASE_IMAGE=docker.io/logdna/build-images:rust-${VARIANT_VERSION}-1-stable-base-${HOST_ARCH}" \
                 -t "docker.io/logdna/build-images:rust-${VARIANT_VERSION}-1-stable-${CROSS_COMPILER_TARGET_ARCH}" \
