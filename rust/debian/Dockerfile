@@ -95,6 +95,15 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     sccache --show-stats && \
     rm -rf /tmp/musl-cross
 
+# Some legacy compat linkers
+RUN printf "#!/usr/bin/env bash\nclang -fuse-ld=lld --target=aarch64-unknown-linux-musl \$@" > /usr/local/bin/aarch64-unknown-linux-musl-clang && \
+    chmod +x /usr/local/bin/aarch64-unknown-linux-musl-clang && \
+    printf "#!/usr/bin/env bash\nclang -fuse-ld=lld --target=x86_64-unknown-linux-musl \$@" > /usr/local/bin/x86_64-unknown-linux-musl-clang && \
+    chmod +x /usr/local/bin/x86_64-unknown-linux-musl-clang
+
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER="/usr/local/bin/aarch64-unknown-linux-musl-clang"
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER="/usr/local/bin/x86_64-unknown-linux-musl-clang"
+
 ## Set up default cargo env vars for cross compiling
 ENV MUSL_C_INCLUDES="-isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/${MUSL_TRIPLE}/include/ -isystem $LLVM_SYSROOT/usr/include/linux/"
 ENV MUSL_CXX_INCLUDES="-isystem $LLVM_SYSROOT/usr/include/c++/v1/ -isystem $LLVM_SYSROOT/usr/${MUSL_TRIPLE}/include/ "
