@@ -104,10 +104,15 @@ ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_AR=llvm-ar
 
 # Set up basic gnu C configuration for to use clang as the linker driver, llvm-ar, ETC
-ENV CC_${GNU_TRIPLE}="clang"
-ENV CFLAGS_${GNU_TRIPLE}="--target=${GNU_TRIPLE} -fuse-ld=lld -fPIC"
-ENV CXX_${GNU_TRIPLE}="clang++"
-ENV CXXFLAGS_${GNU_TRIPLE}="--target=${GNU_TRIPLE} -fuse-ld=lld"
+ENV CC_aarch64_unknown_linux_gnu="clang"
+ENV CFLAGS_aarch64_unknown_linux_gnu="--target=aarch64-unknown-linux-gnu -fuse-ld=lld -fPIC"
+ENV CXX_aarch64_unknown_linux_gnu="clang++"
+ENV CXXFLAGS_aarch64_unknown_linux_gnu="--target=aarch64-unknown-linux-gnu -fuse-ld=lld -fPIC"
+
+ENV CC_x86_64_unknown_linux_gnu="clang"
+ENV CFLAGS_x86_64_unknown_linux_gnu="--target=x86_64-unknown-linux-gnu -fuse-ld=lld -fPIC"
+ENV CXX_x86_64_unknown_linux_gnu="clang++"
+ENV CXXFLAGS_x86_64_unknown_linux_gnu="--target=x86_64-unknown-linux-gnu -fuse-ld=lld -fPIC"
 
 ENV RUSTC_WRAPPER="/usr/local/bin/sccache"
 ENV CC_WRAPPER="/usr/local/bin/sccache"

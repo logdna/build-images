@@ -217,7 +217,6 @@ ARG SCCACHE_SERVER_PORT=4226
 ARG CROSS_COMPILER_TARGET_ARCH
 ENV LLVM_SYSROOT="/sysroot/${CROSS_COMPILER_TARGET_ARCH}-musl"
 ENV MUSL_TRIPLE="${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl"
-ENV GNU_TRIPLE="${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-gnu"
 
 # Copy files around to ensure changes are compatible with agent 3.3 and 3.4
 RUN mkdir -p /usr/local/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/include && \
@@ -225,7 +224,6 @@ RUN mkdir -p /usr/local/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/include
     cp $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib/librocksdb.a* /usr/local/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/lib && \
     cp -r $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/rocksdb/ /usr/local/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/include/ && \
     cp -r $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/rocksdb/ /usr/include/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/ && \
-    cp -r $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/* /usr/local/include/ && \
     cp -r $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl /usr/local/${CROSS_COMPILER_TARGET_ARCH}-linux-musl && \
     cp -r $LLVM_SYSROOT/usr/lib/* /usr/local/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/lib/ && \
     ln -s /usr/lib/llvm-${LLVM_MAJOR_VERSION}/bin/llvm-strip /usr/local/bin/${CROSS_COMPILER_TARGET_ARCH}-linux-gnu-strip && \
