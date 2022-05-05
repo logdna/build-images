@@ -35,7 +35,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -n "$SCCACHE_BUCKET" ]; then export RUSTC_WRAPPER=/usr/local/bin/sccache; fi && \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi && \
     # Add sccache cargo-flamegraph, cargo-audit and cargo-cache \
-    cargo install -q sccache --root "opt/tools" --no-default-features --features s3,azure,openssl/vendored \
+    cargo install -q sccache --root /out/tools --no-default-features --features s3,azure,openssl/vendored \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     cargo install -q --git https://github.com/flamegraph-rs/flamegraph \
         --tag v0.5.1 --locked --root /out/tools \
