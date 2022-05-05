@@ -24,9 +24,10 @@ RUN dpkg --add-architecture ${TARGETARCH} && \
     apt-get -q update -y && apt-get -q install --no-install-recommends -y musl-dev:${TARGETARCH}
 
 ENV CC_aarch64_unknown_linux_musl=clang
-ENV CFLAGS_aarch64_unknown_linux_musl="-isystem /usr/include/aarch64-linux-musl"
+ENV CFLAGS_aarch64_unknown_linux_musl="-fuse-ld=lld -isystem /usr/include/aarch64-linux-musl"
+
 ENV CC_x86_64_unknown_linux_musl=clang
-ENV CFLAGS_x86_64_unknown_linux_musl="-isystem /usr/include/x86_64-linux-musl"
+ENV CFLAGS_x86_64_unknown_linux_musl="-fuse-ld=lld -isystem /usr/include/x86_64-linux-musl"
 
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     mkdir -p /out/tools && \
@@ -35,7 +36,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -n "$SCCACHE_BUCKET" ]; then export RUSTC_WRAPPER=/usr/local/bin/sccache; fi && \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi && \
     # Add sccache cargo-flamegraph, cargo-audit and cargo-cache \
-    cargo install -q sccache --root "opt/tools" --no-default-features --features s3,azure,openssl/vendored \
+    cargo install -q sccache --root /out/tools --no-default-features --features s3,azure,openssl/vendored \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     cargo install -q --git https://github.com/flamegraph-rs/flamegraph \
         --tag v0.5.1 --locked --root /out/tools \
@@ -257,9 +258,10 @@ RUN rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl && \
 ## Set up default cargo env vars for cross compiling
 ENV MUSL_C_INCLUDES="-isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/${MUSL_TRIPLE}/include/ -isystem $LLVM_SYSROOT/usr/include/linux/"
 ENV MUSL_CXX_INCLUDES="-isystem $LLVM_SYSROOT/usr/include/c++/v1/ -isystem $LLVM_SYSROOT/usr/${MUSL_TRIPLE}/include/ "
+ENV MUSL_C_FLAGS="-fuse-ld=lld -static -fPIC -nodefaultlibs -nostdinc"
+ENV MUSL_CXX_FLAGS="-nostdinc++ -static-libstdc++ --stdlib=c++ --rtlib=compiler-rt"
 
-ENV COMMON_RUSTFLAGS="-Clinker=clang -Clink-args=-fuse-ld=lld -Lnative=${LLVM_SYSROOT}/usr/lib/"
-ENV SHARED_RUSTFLAGS="${COMMON_RUSTFLAGS}"
+ENV COMMON_RUSTFLAGS="-Clinker=clang -Clink-args=-fuse-ld=lld -Clinker-plugin-lto -Lnative=${LLVM_SYSROOT}/usr/lib/"
 ENV STATIC_RUSTFLAGS="${COMMON_RUSTFLAGS} -Ctarget-feature=+crt-static -Clink-args=-static \
                       -Clink-args=-nodefaultlibs -Clink-args=-nostdlib -Clink-args=-nostdlib++\
                       -Clink-args=-stdlib=c++ -l static=c++ -l static=c++abi \
@@ -269,14 +271,14 @@ ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="${STATIC_RUSTFLAGS} -Clin
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="${STATIC_RUSTFLAGS} -Clink-args=--target=x86_64-unknown-linux-musl"
 
 ENV CC_aarch64_unknown_linux_musl="clang"
-ENV CFLAGS_aarch64_unknown_linux_musl="--target=aarch64-unknown-linux-musl -fuse-ld=lld -static -fPIC -nostdlib -nodefaultlibs -nostdinc -isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/aarch64-unknown-linux-musl/include/ -isystem $LLVM_SYSROOT/usr/include/linux/ -L ${LLVM_SYSROOT}/usr/aarch64-unknown-linux-musl/lib -lc  -L ${LLVM_SYSROOT}/usr/lib/linux/ -lclang_rt.builtins-aarch64"
+ENV CFLAGS_aarch64_unknown_linux_musl="--target=aarch64-unknown-linux-musl ${MUSL_C_FLAGS} -nostdlib -isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/aarch64-unknown-linux-musl/include/ -isystem $LLVM_SYSROOT/usr/include/linux/ -L ${LLVM_SYSROOT}/usr/aarch64-unknown-linux-musl/lib -L ${LLVM_SYSROOT}/usr/lib/linux/ -lc -lclang_rt.builtins-aarch64"
 ENV CXX_aarch64_unknown_linux_musl="clang++"
-ENV CXXFLAGS_aarch64_unknown_linux_musl="--target=aarch64-unknown-linux-musl -fuse-ld=lld -nostdinc -static-libstdc++ --stdlib=c++ --rtlib=compiler-rt -nodefaultlibs -nostdinc++ -isystem $LLVM_SYSROOT/usr/include/c++/v1/ -isystem $LLVM_SYSROOT/usr/aarch64-unknown-linux-musl/include/  -isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/aarch64-unknown-linux-musl/include/ -isystem $LLVM_SYSROOT/usr/include/linux/ "
+ENV CXXFLAGS_aarch64_unknown_linux_musl="--target=aarch64-unknown-linux-musl ${MUSL_C_FLAGS} ${MUSL_CXX_FLAGS} -isystem $LLVM_SYSROOT/usr/include/c++/v1/ -isystem $LLVM_SYSROOT/usr/aarch64-unknown-linux-musl/include/ -isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/aarch64-unknown-linux-musl/include/ -isystem $LLVM_SYSROOT/usr/include/linux/"
 
 ENV CC_x86_64_unknown_linux_musl="clang"
-ENV CFLAGS_x86_64_unknown_linux_musl="--target=x86_64-unknown-linux-musl -fuse-ld=lld -static -fPIC -nostdlib -nodefaultlibs -nostdinc -isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/x86_64-unknown-linux-musl/include/ -isystem $LLVM_SYSROOT/usr/include/linux/ -L ${LLVM_SYSROOT}/usr/x86_64-unknown-linux-musl/lib -lc  -L ${LLVM_SYSROOT}/usr/lib/linux/ -lclang_rt.builtins-x86_64"
+ENV CFLAGS_x86_64_unknown_linux_musl="--target=x86_64-unknown-linux-musl ${MUSL_C_FLAGS} -nostdlib -isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/x86_64-unknown-linux-musl/include/ -isystem $LLVM_SYSROOT/usr/include/linux/ -L ${LLVM_SYSROOT}/usr/x86_64-unknown-linux-musl/lib  -L ${LLVM_SYSROOT}/usr/lib/linux/ -lc -lclang_rt.builtins-x86_64"
 ENV CXX_x86_64_unknown_linux_musl="clang++"
-ENV CXXFLAGS_x86_64_unknown_linux_musl="--target=x86_64-unknown-linux-musl -fuse-ld=lld -nostdinc -static-libstdc++ --stdlib=c++ --rtlib=compiler-rt -nodefaultlibs -nostdinc++ -isystem $LLVM_SYSROOT/usr/include/c++/v1/ -isystem $LLVM_SYSROOT/usr/x86_64-unknown-linux-musl/include/  -isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/x86_64-unknown-linux-musl/include/ -isystem $LLVM_SYSROOT/usr/include/linux/ "
+ENV CXXFLAGS_x86_64_unknown_linux_musl="--target=x86_64-unknown-linux-musl ${MUSL_C_FLAGS} ${MUSL_CXX_FLAGS} -isystem $LLVM_SYSROOT/usr/include/c++/v1/ -isystem $LLVM_SYSROOT/usr/x86_64-unknown-linux-musl/include/ -isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/x86_64-unknown-linux-musl/include/ -isystem $LLVM_SYSROOT/usr/include/linux/"
 
 ENV PCRE2_SYS_STATIC=1
 ENV SYSTEMD_LIB_DIR="/lib/${CROSS_COMPILER_TARGET_ARCH}-linux-gnu"

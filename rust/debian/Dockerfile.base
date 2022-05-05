@@ -72,31 +72,37 @@ RUN curl -L https://sh.rustup.rs -sSf | \
 ENV GNU_TRIPLE="${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-gnu"
 ENV MUSL_TRIPLE="${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl"
 
+ENV SHARED_RUSTFLAGS="-Clink-args=-fuse-ld=lld"
+# -Clinker-plugin-lto
 # Set up basic musl C configuration for to use clang as the linker driver, llvm-ar, ETC
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=clang
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_AR=llvm-ar
-ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="-Clink-args=-fuse-ld=lld \
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="${SHARED_RUSTFLAGS} \
                                                        -Clink-args=--target=aarch64-unknown-linux-musl"
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=clang
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_AR=llvm-ar
-ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="-Clink-args=-fuse-ld=lld \
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="${SHARED_RUSTFLAGS} \
                                                       -Clink-args=--target=x86_64-unknown-linux-musl"
 # Teach cargo to use clang as the linker driver
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=clang
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_AR=llvm-ar
-
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS="${SHARED_RUSTFLAGS} \
+                                                      -Clink-args=--target=aarch64-unknown-linux-gnu"
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_AR=llvm-ar
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="${SHARED_RUSTFLAGS} \
+                                                     -Clink-args=--target=x86_64-unknown-linux-gnu"
 
 # Set up basic gnu C configuration for to use clang as the linker driver, llvm-ar, ETC
+ENV GNU_COMMON_CFLAGS="-fuse-ld=lld -fPIC -flto=thin"
 ENV CC_aarch64_unknown_linux_gnu="clang"
-ENV CFLAGS_aarch64_unknown_linux_gnu="--target=aarch64-unknown-linux-gnu -fuse-ld=lld -fPIC"
+ENV CFLAGS_aarch64_unknown_linux_gnu="--target=aarch64-unknown-linux-gnu ${GNU_COMMON_CFLAGS}"
 ENV CXX_aarch64_unknown_linux_gnu="clang++"
-ENV CXXFLAGS_aarch64_unknown_linux_gnu="--target=aarch64-unknown-linux-gnu -fuse-ld=lld -fPIC"
+ENV CXXFLAGS_aarch64_unknown_linux_gnu="--target=aarch64-unknown-linux-gnu ${GNU_COMMON_CFLAGS}"
 
 ENV CC_x86_64_unknown_linux_gnu="clang"
-ENV CFLAGS_x86_64_unknown_linux_gnu="--target=x86_64-unknown-linux-gnu -fuse-ld=lld -fPIC"
+ENV CFLAGS_x86_64_unknown_linux_gnu="--target=x86_64-unknown-linux-gnu ${GNU_COMMON_CFLAGS}"
 ENV CXX_x86_64_unknown_linux_gnu="clang++"
-ENV CXXFLAGS_x86_64_unknown_linux_gnu="--target=x86_64-unknown-linux-gnu -fuse-ld=lld -fPIC"
+ENV CXXFLAGS_x86_64_unknown_linux_gnu="--target=x86_64-unknown-linux-gnu ${GNU_COMMON_CFLAGS}"
 
 CMD ["bash"]
