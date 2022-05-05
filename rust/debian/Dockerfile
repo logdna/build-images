@@ -17,8 +17,7 @@ ARG SCCACHE_ENDPOINT
 ARG SCCACHE_RECACHE
 ARG SCCACHE_SERVER_PORT=4226
 
-RUN rustup target add "${!TARGETARCH}-unknown-linux-musl"  && \
-    chmod -R a+rw $RUSTUP_HOME $CARGO_HOME
+RUN rustup target add "${!TARGETARCH}-unknown-linux-musl"
 
 RUN dpkg --add-architecture ${TARGETARCH} && \
     dpkg --add-architecture ${!CROSS_COMPILER_TARGET_ARCH} && \
@@ -29,11 +28,15 @@ ENV CFLAGS_aarch64_unknown_linux_musl="-isystem /usr/include/aarch64-linux-musl"
 ENV CC_x86_64_unknown_linux_musl=clang
 ENV CFLAGS_x86_64_unknown_linux_musl="-isystem /usr/include/x86_64-linux-musl"
 
-# Add cargo-flamegraph and cargo-cache
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
-    if [ -z "$SCCACHE_BUCKET" ]; then unset RUSTC_WRAPPER; fi; \
-    if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
     mkdir -p /out/tools && \
+    # Install sccache for this image \
+    cargo install -q sccache --root "/usr/local" --no-default-features --features s3,azure,openssl/vendored && \
+    if [ -n "$SCCACHE_BUCKET" ]; then export RUSTC_WRAPPER=/usr/local/bin/sccache; fi && \
+    if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi && \
+    # Add sccache cargo-flamegraph, cargo-audit and cargo-cache \
+    cargo install -q sccache --root "opt/tools" --no-default-features --features s3,azure,openssl/vendored \
+        --target=${!TARGETARCH}-unknown-linux-musl && \
     cargo install -q --git https://github.com/flamegraph-rs/flamegraph \
         --tag v0.5.1 --locked --root /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
@@ -44,6 +47,9 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
         --no-default-features --features vendored-openssl,vendored-libgit2 \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     sccache --show-stats
+
+ENV RUSTC_WRAPPER="/usr/local/bin/sccache"
+ENV CC_WRAPPER="/usr/local/bin/sccache"
 
 ENV LINUX_HEADER_VERSION="4.19.88"
 ARG MUSL_VERSION="1.2.2"
@@ -217,6 +223,9 @@ ARG SCCACHE_SERVER_PORT=4226
 ARG CROSS_COMPILER_TARGET_ARCH
 ENV LLVM_SYSROOT="/sysroot/${CROSS_COMPILER_TARGET_ARCH}-musl"
 ENV MUSL_TRIPLE="${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl"
+
+ENV RUSTC_WRAPPER="/usr/local/bin/sccache"
+ENV CC_WRAPPER="/usr/local/bin/sccache"
 
 # Copy files around to ensure changes are compatible with agent 3.3 and 3.4
 RUN mkdir -p /usr/local/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/include && \
