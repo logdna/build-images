@@ -37,17 +37,17 @@ RUN DEPS="ca-certificates curl file m4 make locales pkg-config xz-utils cmake \
           libc++-${LLVM_MAJOR_VERSION}-dev lldb-${LLVM_MAJOR_VERSION}\
           systemd libsystemd-dev patch \
           libssl-dev bzip2 gcc g++ libtool m4 libc6-dev" \
-  && apt-get update \
+  && apt-get update  > /dev/null \
   && apt-key add /llvm-snapshot.gpg.key \
-  && apt-get install -y --no-install-recommends software-properties-common \
+  && apt-get install -y --no-install-recommends software-properties-common > /dev/null \
   && add-apt-repository "deb http://apt.llvm.org/${VARIANT_VERSION}/ llvm-toolchain-${VARIANT_VERSION}-${LLVM_MAJOR_VERSION} main" \
-  && apt-get update \
-  && apt-get install -y --no-install-recommends $DEPS \
+  && apt-get update > /dev/null \
+  && apt-get install -y --no-install-recommends $DEPS > /dev/null \
   && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
   && locale-gen en_US.UTF-8 \
   && /usr/sbin/update-locale LANG=en_US.UTF-8 \
-  && apt-get autoremove -y \
-  && apt-get clean \
+  && apt-get autoremove -y > /dev/null \
+  && apt-get clean > /dev/null \
   && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc
 
 RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${LLVM_MAJOR_VERSION} 100 && \
@@ -58,14 +58,14 @@ RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${LLVM_MAJ
     update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-${LLVM_MAJOR_VERSION} 100 && \
     update-alternatives --install /usr/bin/llvm-strip llvm-strip /usr/lib/llvm-${LLVM_MAJOR_VERSION}/bin/llvm-strip 100
 
-RUN unmunch /usr/share/hunspell/en_GB.dic /usr/share/hunspell/en_GB.aff | grep -v "'s" > /dict.txt
+RUN unmunch /usr/share/hunspell/en_GB.dic /usr/share/hunspell/en_GB.aff 2> /dev/null | grep -v "'s" > /dict.txt
 
 ARG VERSION="stable"
 
 # Install rust
 ENV CARGO_HOME=/opt/rust/cargo
 RUN curl -L https://sh.rustup.rs -sSf | \
-    sh -s -- -y --default-toolchain $VERSION --component clippy rustfmt --profile minimal --no-modify-path && \
+    sh -s -- -q -y --default-toolchain $VERSION --component clippy rustfmt --profile minimal --no-modify-path && \
     chmod -R a+rw $RUSTUP_HOME $CARGO_HOME
 
 # Install sccache
@@ -104,10 +104,15 @@ ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_AR=llvm-ar
 
 # Set up basic gnu C configuration for to use clang as the linker driver, llvm-ar, ETC
-ENV CC_${GNU_TRIPLE}="clang"
-ENV CFLAGS_${GNU_TRIPLE}="--target=${GNU_TRIPLE} -fuse-ld=lld -fPIC"
-ENV CXX_${GNU_TRIPLE}="clang++"
-ENV CXXFLAGS_${GNU_TRIPLE}="--target=${GNU_TRIPLE} -fuse-ld=lld"
+ENV CC_aarch64_unknown_linux_gnu="clang"
+ENV CFLAGS_aarch64_unknown_linux_gnu="--target=aarch64-unknown-linux-gnu -fuse-ld=lld -fPIC"
+ENV CXX_aarch64_unknown_linux_gnu="clang++"
+ENV CXXFLAGS_aarch64_unknown_linux_gnu="--target=aarch64-unknown-linux-gnu -fuse-ld=lld -fPIC"
+
+ENV CC_x86_64_unknown_linux_gnu="clang"
+ENV CFLAGS_x86_64_unknown_linux_gnu="--target=x86_64-unknown-linux-gnu -fuse-ld=lld -fPIC"
+ENV CXX_x86_64_unknown_linux_gnu="clang++"
+ENV CXXFLAGS_x86_64_unknown_linux_gnu="--target=x86_64-unknown-linux-gnu -fuse-ld=lld -fPIC"
 
 ENV RUSTC_WRAPPER="/usr/local/bin/sccache"
 ENV CC_WRAPPER="/usr/local/bin/sccache"
