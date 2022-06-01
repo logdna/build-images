@@ -32,20 +32,31 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     mkdir -p /out/tools && \
     # Install sccache for this image \
     cargo install -q sccache --root "/usr/local" --no-default-features --features s3,azure,openssl/vendored && \
+    echo "installed build build image sccache" && \
     if [ -n "$SCCACHE_BUCKET" ]; then export RUSTC_WRAPPER=/usr/local/bin/sccache; fi && \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi && \
     # Add sccache cargo-flamegraph, cargo-audit and cargo-cache \
     cargo install -q sccache --root /out/tools --no-default-features --features s3,azure,openssl/vendored \
         --target=${!TARGETARCH}-unknown-linux-musl && \
+    echo "built build image sccache" && \
+    cargo install -q cargo-nextest --root /out/tools \
+        --target=${!TARGETARCH}-unknown-linux-musl && \
+    echo "built build image cargo-nextest" && \
+    cargo install -q cargo-llvm-cov --root /out/tools \
+        --target=${!TARGETARCH}-unknown-linux-musl && \
+    echo "built build image cargo-llvm-cov" && \
     cargo install -q --git https://github.com/flamegraph-rs/flamegraph \
         --tag v0.5.1 --locked --root /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
+    echo "built build image cargo-flamegraph" && \
     cargo install -q cargo-cache --version 0.8.2  --locked --root /out/tools \
         --no-default-features --features ci-autoclean,vendored-libgit \
         --target=${!TARGETARCH}-unknown-linux-musl && \
+    echo "built build image cargo-cache" && \
     cargo install -q cargo-audit --version 0.16.0  --locked --root /out/tools \
         --no-default-features --features vendored-openssl,vendored-libgit2 \
         --target=${!TARGETARCH}-unknown-linux-musl && \
+    echo "built build image cargo-audit" && \
     sccache --show-stats
 
 ENV RUSTC_WRAPPER="/usr/local/bin/sccache"
