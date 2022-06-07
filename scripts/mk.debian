@@ -23,7 +23,7 @@ else
 fi
 
 PLATFORM=${PLATFORM:-${platforms[$HOST_ARCH]}}
-VARIANT_VERSION=${VARIANT_VERSION:-buster}
+VARIANT_VERSION=${VARIANT_VERSION:-bullseye}
 
 # Put aws creds in file so we can securely use them in docker build
 AWS_CREDENTIALS_FILE=${AWS_CREDENTIALS_FILE:-"$HOME/.aws/credentials"}
