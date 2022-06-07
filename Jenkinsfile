@@ -60,12 +60,7 @@ pipeline {
         stages {
           stage('Initilize qemu') {
             steps {
-              sh """
-                free -h && df -h
-                cat /proc/cpuinfo
-                # initialize qemu
-                docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-              """
+              sh "make init-qemu"
             }
           }
           stage('Build platform specific base') {
@@ -184,12 +179,7 @@ pipeline {
         stages {
           stage('Initilize qemu') {
             steps {
-              sh """
-                free -h && df -h
-                cat /proc/cpuinfo
-                # initialize qemu
-                docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-              """
+              sh "make init-qemu"
             }
           }
           stage('Build cross compilation image') {
