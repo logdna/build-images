@@ -44,16 +44,19 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     echo "built build image cargo-nextest" && \
     cargo install -q cargo-llvm-cov --root /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
+    echo "built build image cargo-xwin" && \
+    cargo install -q cargo-xwin --version 0.9.2 --locked --root /out/tools \
+        --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-llvm-cov" && \
     cargo install -q --git https://github.com/flamegraph-rs/flamegraph \
         --tag v0.5.1 --locked --root /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-flamegraph" && \
-    cargo install -q cargo-cache --version 0.8.2  --locked --root /out/tools \
+    cargo install -q cargo-cache --version 0.8.2 --locked --root /out/tools \
         --no-default-features --features ci-autoclean,vendored-libgit \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-cache" && \
-    cargo install -q cargo-audit --version 0.16.0  --locked --root /out/tools \
+    cargo install -q cargo-audit --version 0.16.0 --locked --root /out/tools \
         --no-default-features --features vendored-openssl,vendored-libgit2 \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-audit" && \
@@ -261,9 +264,15 @@ RUN printf "#!/usr/bin/env bash\nclang -fuse-ld=lld --target=aarch64-unknown-lin
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER="/usr/local/bin/aarch64-unknown-linux-musl-clang"
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER="/usr/local/bin/x86_64-unknown-linux-musl-clang"
 
+ENV XWIN_CACHE_DIR="${CARGO_HOME}/xwin"
+ENV XWIN_VERSION=16
+
 RUN rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl && \
     rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-gnu  && \
-    chmod -R a+rw $RUSTUP_HOME $CARGO_HOME
+    rustup target add ${CROSS_COMPILER_TARGET_ARCH}-pc-windows-msvc  && \
+    mkdir -p $XWIN_CACHE_DIR && chmod -R a+rw $RUSTUP_HOME $CARGO_HOME
+
+ENV XDG_CACHE_HOME="${CARGO_HOME}/xwin"
 
 ## Set up default cargo env vars for cross compiling
 ENV MUSL_C_INCLUDES="-isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/${MUSL_TRIPLE}/include/ -isystem $LLVM_SYSROOT/usr/include/linux/"
