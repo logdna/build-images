@@ -30,6 +30,8 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US
 ENV TERM xterm
 
+SHELL ["/bin/bash", "-c"]
+
 RUN DEPS="ca-certificates curl file m4 make locales pkg-config xz-utils cmake \
           lsof procps git automake hunspell-en-gb hunspell-tools linux-perf \
           texinfo procps zlib1g-dev clang-${LLVM_MAJOR_VERSION} \
@@ -45,10 +47,7 @@ RUN DEPS="ca-certificates curl file m4 make locales pkg-config xz-utils cmake \
   && apt-get install -y --no-install-recommends $DEPS > /dev/null \
   && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
   && locale-gen en_US.UTF-8 \
-  && /usr/sbin/update-locale LANG=en_US.UTF-8 \
-  && apt-get autoremove -y > /dev/null \
-  && apt-get clean > /dev/null \
-  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc
+  && /usr/sbin/update-locale LANG=en_US.UTF-8
 
 RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${LLVM_MAJOR_VERSION} 100 && \
     update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${LLVM_MAJOR_VERSION} 100 && \
@@ -62,6 +61,20 @@ RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${LLVM_MAJ
     update-alternatives --install /usr/bin/lld-link lld-link /usr/bin/lld-link-${LLVM_MAJOR_VERSION} 100
 
 RUN unmunch /usr/share/hunspell/en_GB.dic /usr/share/hunspell/en_GB.aff 2> /dev/null | grep -v "'s" > /dict.txt
+
+################################################################################################
+# Add 3rd party tools here
+# do not add them at the end or into derived image which is for crossed Rust stuff
+################################################################################################
+
+# msitools not avail on buster
+RUN if [[ "${VARIANT_VERSION}" != "buster" ]] ; then \
+    apt install -y meson valac-bin valac valac-0.48-vapi libgsf-1-dev bats bison libgcab-dev libgirepository1.0-dev && \
+    git clone --recurse-submodules https://github.com/GNOME/msitools.git && \
+    mkdir ./msitools/target && pushd ./msitools/target && \
+    meson .. && ninja install && popd && rm -rf ./msitools && ldconfig && wixl --version; fi;
+
+###############################################################################################
 
 ARG VERSION="stable"
 
@@ -101,5 +114,11 @@ ENV CC_x86_64_unknown_linux_gnu="clang"
 ENV CFLAGS_x86_64_unknown_linux_gnu="--target=x86_64-unknown-linux-gnu -fuse-ld=lld -fPIC"
 ENV CXX_x86_64_unknown_linux_gnu="clang++"
 ENV CXXFLAGS_x86_64_unknown_linux_gnu="--target=x86_64-unknown-linux-gnu -fuse-ld=lld -fPIC"
+
+####### Final cleanup
+
+RUN apt-get autoremove -y > /dev/null && \
+    apt-get clean > /dev/null && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc
 
 CMD ["bash"]
