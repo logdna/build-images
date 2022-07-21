@@ -10,11 +10,16 @@ export DOCKER_BUILDKIT=1
 #   linux/arm64       aarch64
 declare -A platforms=( ["x86_64"]="linux/amd64" ["aarch64"]="linux/arm64")
 
-
 # Default to the host ARCH
 HOST_ARCH="$(uname -m)"
 
+#
+# redefine these
+#
 CROSS_COMPILER_TARGET_ARCHS="${CROSS_COMPILER_TARGET_ARCHS:-$HOST_ARCH}"
+PLATFORM=${PLATFORM:-${platforms[$HOST_ARCH]}}
+VARIANT_VERSION=${VARIANT_VERSION:-bullseye}
+
 
 # special case handling for M1s
 if [[ $HOST_ARCH == 'arm64' ]]; then
@@ -22,9 +27,6 @@ if [[ $HOST_ARCH == 'arm64' ]]; then
 else
     HOST_ARCH=${HOST_ARCH:-$HOST_ARCH}
 fi
-
-PLATFORM=${PLATFORM:-${platforms[$HOST_ARCH]}}
-VARIANT_VERSION=${VARIANT_VERSION:-bullseye}
 
 # Put aws creds in file so we can securely use them in docker build
 AWS_CREDENTIALS_FILE=${AWS_CREDENTIALS_FILE:-"$HOME/.aws/credentials"}
