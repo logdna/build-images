@@ -21,7 +21,18 @@ RUN rustup target add "${!TARGETARCH}-unknown-linux-musl"
 
 RUN dpkg --add-architecture ${TARGETARCH} && \
     dpkg --add-architecture ${!CROSS_COMPILER_TARGET_ARCH} && \
-    apt-get -q update -y && apt-get -q install --no-install-recommends -y musl-dev:${TARGETARCH} libcap-dev:${TARGETARCH}
+    apt-get -q update -y && apt-get -q install --no-install-recommends -y \
+    meson:${TARGETARCH} \
+    valac-bin:${TARGETARCH} \
+    valac:${TARGETARCH} \
+    valac-0.48-vapi:${TARGETARCH} \
+    libgsf-1-dev:${TARGETARCH} \
+    bats:${TARGETARCH} \
+    bison:${TARGETARCH} \
+    libgcab-dev:${TARGETARCH} \
+    libgirepository1.0-dev:${TARGETARCH} \
+    musl-dev:${TARGETARCH} \
+    libcap-dev:${TARGETARCH}
 
 ENV CC_aarch64_unknown_linux_musl=clang
 ENV CFLAGS_aarch64_unknown_linux_musl="-isystem /usr/include/aarch64-linux-musl"
@@ -212,6 +223,15 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     cp -r include/* $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/ && \
     sccache --show-stats && \
     rm -R /tmp/rocksdb/
+
+
+RUN git clone --recurse-submodules https://github.com/GNOME/msitools.git && \
+    mkdir ./msitools/target && pushd ./msitools/target && \
+    export CC="$CC_WRAPPER clang --target=${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl" \
+    CFLAGS="-nostdinc -isystem $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/" \
+    LDSHARED="lld" AR=llvm-ar RANLIB=llvm-ranlib \
+    LDFLAGS="-L$LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib"; \
+    meson .. && ninja install && popd && rm -rf ./msitools && ldconfig && wixl --version
 
 
 #############################################################################
