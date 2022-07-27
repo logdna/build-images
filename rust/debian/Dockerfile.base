@@ -76,9 +76,11 @@ RUN if [[ "${VARIANT_VERSION}" != "buster" ]] ; then \
     apt install -y meson valac-bin valac valac-0.48-vapi libgsf-1-dev bats bison libgcab-dev libgirepository1.0-dev && \
     git clone --recurse-submodules https://github.com/GNOME/msitools.git && \
     mkdir ./msitools/target && pushd ./msitools/target && \
-    meson .. && ninja install && popd && rm -rf ./msitools && ldconfig && wixl --version; fi && \
-    apt-get autoremove -y > /dev/null && apt-get clean > /dev/null && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc
+    meson .. && ninja install && popd && rm -rf ./msitools && ldconfig && wixl --version; \
+    apt autoremove -y meson valac-bin valac valac-0.48-vapi bats bison > /dev/null && \
+    apt-get clean > /dev/null && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc; \
+    fi
 
 ###############################################################################################
 
