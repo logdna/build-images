@@ -1,5 +1,5 @@
 ARG VARIANT_VERSION=buster
-FROM buildpack-deps:${VARIANT_VERSION}-curl
+FROM debian:${VARIANT_VERSION}-slim
 
 # Needs to be in this scope too
 ARG VARIANT_VERSION=buster
@@ -34,13 +34,13 @@ SHELL ["/bin/bash", "-c"]
 
 RUN DEPS="ca-certificates curl file m4 make locales pkg-config xz-utils cmake \
           lsof procps git automake hunspell-en-gb hunspell-tools linux-perf \
-          texinfo procps zlib1g-dev clang-${LLVM_MAJOR_VERSION} \
-          lld-${LLVM_MAJOR_VERSION} lldb-${LLVM_MAJOR_VERSION}\
+          netbase wget texinfo procps zlib1g-dev clang-${LLVM_MAJOR_VERSION} \
+          lld-${LLVM_MAJOR_VERSION} lldb-${LLVM_MAJOR_VERSION} \
           systemd libsystemd-dev patch osslsigncode \
-          libssl-dev bzip2 libtool m4 libc6-dev" \
+          libssl-dev bzip2 libtool libc6-dev" \
   && apt-get update  > /dev/null \
+  && apt-get install -y --no-install-recommends software-properties-common gnupg > /dev/null \
   && apt-key add /llvm-snapshot.gpg.key \
-  && apt-get install -y --no-install-recommends software-properties-common > /dev/null \
   && add-apt-repository "deb http://apt.llvm.org/${VARIANT_VERSION}/ llvm-toolchain-${VARIANT_VERSION}-${LLVM_MAJOR_VERSION} main" \
   && apt-get update > /dev/null \
   && apt-get install -y --no-install-recommends $DEPS > /dev/null \
