@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 TOP=$(dirname "$(readlink -f "$0")")/..
-pushd "$TOP"
+pushd "$TOP" > /dev/null
 export DOCKER_BUILDKIT=1
 #
 #   PLATFORM          ARCH
@@ -13,13 +13,51 @@ declare -A platforms=( ["x86_64"]="linux/amd64" ["aarch64"]="linux/arm64")
 # Default to the host ARCH
 HOST_ARCH="$(uname -m)"
 
-#
-# redefine these
-#
+SUPPORTED_TARGETS="aarch64 x86_64"
+DEFAULT_VARIANT="bullseye"
+
 CROSS_COMPILER_TARGET_ARCHS="${CROSS_COMPILER_TARGET_ARCHS:-$HOST_ARCH}"
 PLATFORM=${PLATFORM:-${platforms[$HOST_ARCH]}}
-VARIANT_VERSION=${VARIANT_VERSION:-bullseye}
+VARIANT_VERSION=${VARIANT_VERSION:-$DEFAULT_VARIANT}
 
+# CLI arg handling
+POSITIONAL_ARGS=()
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -a|--all-targets)
+      CROSS_COMPILER_TARGET_ARCHS="$SUPPORTED_TARGETS"
+      shift # past argument
+      ;;
+    -t|--target)
+      CROSS_COMPILER_TARGET_ARCHS="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -v|--variant-version)
+      VARIANT_VERSION="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -h|--help)
+      echo "Helper script for building rust build images"
+      echo "    -h/--help: print this help menu"
+      echo "    -t/--target <CROSS_TARGET>: Compile selected cross target [$SUPPORTED_TARGETS]"
+      echo "    -v/--variant-version <VARIANT_VERSION>: Use VARIANT_VERSION as base image, defaults to bullseye"
+      echo "    -a/--all-targets: Compile for all cross targets [$SUPPORTED_TARGETS]"
+      exit 0
+      ;;
+    -*|--*)
+      echo "Unknown option $1"
+      exit 1
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1") # save positional arg
+      shift # past argument
+      ;;
+  esac
+done
+
+set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
 # special case handling for M1s
 if [[ $HOST_ARCH == 'arm64' ]]; then
