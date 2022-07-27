@@ -21,7 +21,7 @@ RUN rustup target add "${!TARGETARCH}-unknown-linux-musl"
 
 RUN dpkg --add-architecture ${TARGETARCH} && \
     dpkg --add-architecture ${!CROSS_COMPILER_TARGET_ARCH} && \
-    apt-get -q update -y && apt-get -q install --no-install-recommends -y musl-dev:${TARGETARCH} libcap-dev:${TARGETARCH}
+    apt-get -q update -y && apt-get -q install --no-install-recommends -y musl-dev:${TARGETARCH}
 
 ENV CC_aarch64_unknown_linux_musl=clang
 ENV CFLAGS_aarch64_unknown_linux_musl="-isystem /usr/include/aarch64-linux-musl"
