@@ -35,10 +35,9 @@ SHELL ["/bin/bash", "-c"]
 RUN DEPS="ca-certificates curl file m4 make locales pkg-config xz-utils cmake \
           lsof procps git automake hunspell-en-gb hunspell-tools linux-perf \
           texinfo procps zlib1g-dev clang-${LLVM_MAJOR_VERSION} \
-          llvm-${LLVM_MAJOR_VERSION} lld-${LLVM_MAJOR_VERSION} \
-          libc++-${LLVM_MAJOR_VERSION}-dev lldb-${LLVM_MAJOR_VERSION}\
+          lld-${LLVM_MAJOR_VERSION} lldb-${LLVM_MAJOR_VERSION}\
           systemd libsystemd-dev patch osslsigncode \
-          libssl-dev bzip2 gcc g++ libtool m4 libc6-dev libcap-dev" \
+          libssl-dev bzip2 libtool m4 libc6-dev" \
   && apt-get update  > /dev/null \
   && apt-key add /llvm-snapshot.gpg.key \
   && apt-get install -y --no-install-recommends software-properties-common > /dev/null \
@@ -73,11 +72,11 @@ RUN unmunch /usr/share/hunspell/en_GB.dic /usr/share/hunspell/en_GB.aff 2> /dev/
 # msitools not avail on buster
 RUN if [[ "${VARIANT_VERSION}" != "buster" ]] ; then \
     apt update -y && \
-    apt install -y meson valac-bin valac valac-0.48-vapi libgsf-1-dev bats bison libgcab-dev libgirepository1.0-dev && \
+    apt-get install -y --no-install-recommends meson valac-bin valac valac-0.48-vapi libgsf-1-dev bats bison libgcab-dev libgirepository1.0-dev libgcab libgirepository1.0 && \
     git clone --recurse-submodules https://github.com/GNOME/msitools.git && \
     mkdir ./msitools/target && pushd ./msitools/target && \
     meson .. && ninja install && popd && rm -rf ./msitools && ldconfig && wixl --version; \
-    apt autoremove -y meson valac-bin valac valac-0.48-vapi bats bison > /dev/null && \
+    apt autoremove -y meson valac-bin valac valac-0.48-vapi bats bison libgcab-dev libgirepository1.0-dev && \
     apt-get clean > /dev/null && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc; \
     fi
