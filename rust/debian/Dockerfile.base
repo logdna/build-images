@@ -37,7 +37,7 @@ RUN DEPS="ca-certificates curl file m4 make locales pkg-config xz-utils cmake \
           texinfo procps zlib1g-dev clang-${LLVM_MAJOR_VERSION} \
           llvm-${LLVM_MAJOR_VERSION} lld-${LLVM_MAJOR_VERSION} \
           libc++-${LLVM_MAJOR_VERSION}-dev lldb-${LLVM_MAJOR_VERSION}\
-          systemd libsystemd-dev patch \
+          systemd libsystemd-dev patch osslsigncode \
           libssl-dev bzip2 gcc g++ libtool m4 libc6-dev libcap-dev" \
   && apt-get update  > /dev/null \
   && apt-key add /llvm-snapshot.gpg.key \
@@ -47,7 +47,10 @@ RUN DEPS="ca-certificates curl file m4 make locales pkg-config xz-utils cmake \
   && apt-get install -y --no-install-recommends $DEPS > /dev/null \
   && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
   && locale-gen en_US.UTF-8 \
-  && /usr/sbin/update-locale LANG=en_US.UTF-8
+  && /usr/sbin/update-locale LANG=en_US.UTF-8 \
+  && apt-get autoremove -y > /dev/null \
+  && apt-get clean > /dev/null \
+  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc
 
 RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${LLVM_MAJOR_VERSION} 100 && \
     update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${LLVM_MAJOR_VERSION} 100 && \
@@ -69,10 +72,15 @@ RUN unmunch /usr/share/hunspell/en_GB.dic /usr/share/hunspell/en_GB.aff 2> /dev/
 
 # msitools not avail on buster
 RUN if [[ "${VARIANT_VERSION}" != "buster" ]] ; then \
-    apt install -y osslsigncode meson valac-bin valac valac-0.48-vapi libgsf-1-dev bats bison libgcab-dev libgirepository1.0-dev && \
+    apt update -y && \
+    apt install -y meson valac-bin valac valac-0.48-vapi libgsf-1-dev bats bison libgcab-dev libgirepository1.0-dev && \
     git clone --recurse-submodules https://github.com/GNOME/msitools.git && \
     mkdir ./msitools/target && pushd ./msitools/target && \
-    meson .. && ninja install && popd && rm -rf ./msitools && ldconfig && wixl --version; fi;
+    meson .. && ninja install && popd && rm -rf ./msitools && ldconfig && wixl --version; \
+    apt autoremove -y meson valac-bin valac valac-0.48-vapi bats bison > /dev/null && \
+    apt-get clean > /dev/null && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc; \
+    fi
 
 ###############################################################################################
 
@@ -114,11 +122,5 @@ ENV CC_x86_64_unknown_linux_gnu="clang"
 ENV CFLAGS_x86_64_unknown_linux_gnu="--target=x86_64-unknown-linux-gnu -fuse-ld=lld -fPIC"
 ENV CXX_x86_64_unknown_linux_gnu="clang++"
 ENV CXXFLAGS_x86_64_unknown_linux_gnu="--target=x86_64-unknown-linux-gnu -fuse-ld=lld -fPIC"
-
-####### Final cleanup
-
-RUN apt-get autoremove -y > /dev/null && \
-    apt-get clean > /dev/null && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc
 
 CMD ["bash"]
