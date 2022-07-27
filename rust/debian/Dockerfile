@@ -265,12 +265,16 @@ ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER="/usr/local/bin/aarch64-unkno
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER="/usr/local/bin/x86_64-unknown-linux-musl-clang"
 
 ENV XWIN_CACHE_DIR="${CARGO_HOME}/xwin"
+ENV XWIN_TOOLKIT_BIN_PATH="/usr/local/bin"
 ENV XWIN_VERSION=16
 
 RUN rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl && \
     rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-gnu  && \
     rustup target add ${CROSS_COMPILER_TARGET_ARCH}-pc-windows-msvc  && \
     mkdir -p $XWIN_CACHE_DIR && chmod -R a+rw $RUSTUP_HOME $CARGO_HOME
+
+# Symlink llvm-rc as rc.exe
+RUN ln -s /usr/bin/llvm-rc $XWIN_TOOLKIT_BIN_PATH/rc.exe
 
 ENV XDG_CACHE_HOME="${CARGO_HOME}/xwin"
 
