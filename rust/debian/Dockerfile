@@ -196,7 +196,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
     echo "Building rocksdb" && \
-    git clone https://github.com/facebook/rocksdb.git --branch v6.22.1 --depth=1 /tmp/rocksdb; \
+    git clone https://github.com/facebook/rocksdb.git --branch v7.4.4 --depth=1 /tmp/rocksdb; \
     cd /tmp/rocksdb && \
     export MAKEFLAGS="--silent -j $(nproc)"; \
     export USE_CLANG=1 TARGET_OS=Linux PORTABLE=1 AR=llvm-ar; \
