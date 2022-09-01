@@ -74,10 +74,13 @@ RUN unmunch /usr/share/hunspell/en_GB.dic /usr/share/hunspell/en_GB.aff 2> /dev/
 # msitools not avail on buster
 RUN if [[ "${VARIANT_VERSION}" != "buster" ]] ; then \
     apt update -y && \
-    apt install -y meson valac-bin valac valac-0.48-vapi libgsf-1-dev bats bison libgcab-dev libgirepository1.0-dev && \
+    apt install -y meson valac-bin valac valac-0.48-vapi libgsf-1-dev bats bison libgcab-dev libgirepository1.0-dev wine && \
     git clone --recurse-submodules https://github.com/GNOME/msitools.git && \
     mkdir ./msitools/target && pushd ./msitools/target && \
-    meson .. && ninja install && popd && rm -rf ./msitools && ldconfig && wixl --version; \
+    meson .. && ninja install && popd && rm -rf ./msitools && ldconfig && wixl --version && \
+    mkdir ./miniconda && curl -s https://repo.anaconda.com/miniconda/Miniconda3-py37_4.12.0-Linux-$(uname -m).sh -o ./miniconda/setup.sh && \
+    bash ./miniconda/setup.sh -b -p /opt/miniconda3 && rm -rf ./miniconda && \
+    source /opt/miniconda3/etc/profile.d/conda.sh && conda install -y pytest flask && \
     apt autoremove -y meson valac-bin valac valac-0.48-vapi bats bison > /dev/null && \
     apt-get clean > /dev/null && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc; \
