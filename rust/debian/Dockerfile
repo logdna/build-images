@@ -60,6 +60,9 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
         --no-default-features --features vendored-openssl,vendored-libgit2 \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-audit" && \
+    cargo install -q cargo-tarpaulin --version 0.21.0 --locked --root /out/tools \
+        --target=${!TARGETARCH}-unknown-linus-musl && \
+    echo "built build image cargo-tarpaulin" && \
     sccache --show-stats
 
 ENV RUSTC_WRAPPER="/usr/local/bin/sccache"
