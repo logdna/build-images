@@ -30,6 +30,9 @@ ENV CFLAGS_x86_64_unknown_linux_musl="-isystem /usr/include/x86_64-linux-musl"
 
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     mkdir -p /out/tools && \
+    cargo install -q cargo-tarpaulin --version 0.21.0 --locked --root /out/tools \
+        --target=${!TARGETARCH}-unknown-linus-musl && \
+    echo "built build image cargo-tarpaulin" && \
     # Install sccache for this image \
     cargo install -q sccache --root "/usr/local" --no-default-features --features s3,azure,openssl/vendored && \
     echo "installed build build image sccache" && \
@@ -60,9 +63,6 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
         --no-default-features --features vendored-openssl,vendored-libgit2 \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-audit" && \
-    cargo install cargo-tarpaulin --version 0.21.0 --locked --root /out/tools \
-        --target=${!TARGETARCH}-unknown-linus-musl && \
-    echo "built build image cargo-tarpaulin" && \
     sccache --show-stats
 
 ENV RUSTC_WRAPPER="/usr/local/bin/sccache"
