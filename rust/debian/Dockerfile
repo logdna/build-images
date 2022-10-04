@@ -60,7 +60,6 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
         --no-default-features --features vendored-openssl,vendored-libgit2 \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-audit" && \
-    export OPENSSL_DIR=/usr/bin/openssl && \
     cargo install -q cargo-tarpaulin --version 0.21.0 --locked --root /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-tarpaulin" && \
