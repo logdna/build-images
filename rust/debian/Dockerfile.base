@@ -38,8 +38,7 @@ RUN DEPS="ca-certificates curl file m4 make locales pkg-config xz-utils cmake \
           llvm-${LLVM_MAJOR_VERSION} lld-${LLVM_MAJOR_VERSION} \
           libc++-${LLVM_MAJOR_VERSION}-dev lldb-${LLVM_MAJOR_VERSION} \
           systemd libsystemd-dev patch osslsigncode \
-          libssl-dev bzip2 gcc g++ libtool m4 libc6-dev libcap-dev \
-          libcurl4-openssl-dev libelf-dev libdw-dev binutils-dev libiberty-dev jq" \
+          libssl-dev bzip2 gcc g++ libtool m4 libc6-dev libcap-dev" \
   && apt-get update  > /dev/null \
   && apt-key add /llvm-snapshot.gpg.key \
   && apt-get install -y --no-install-recommends software-properties-common > /dev/null \
