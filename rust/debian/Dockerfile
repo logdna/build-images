@@ -274,7 +274,7 @@ RUN rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl && \
     mkdir -p $XWIN_CACHE_DIR && chmod -R a+rw $RUSTUP_HOME $CARGO_HOME
 
 # Add llvm-tools-preview component
-RUN rustup component llvm-tools-preview --toolchain stable-${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-gnu
+RUN rustup component add llvm-tools-preview --toolchain stable-${!TARGET_ARCH}-unknown-linux-gnu
 
 # Symlink llvm-rc as rc.exe
 RUN ln -s /usr/bin/llvm-rc $XWIN_TOOLKIT_BIN_PATH/rc.exe
