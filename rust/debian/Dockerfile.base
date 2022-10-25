@@ -93,7 +93,7 @@ ARG VERSION="stable"
 # Install rust
 ENV CARGO_HOME=/opt/rust/cargo
 RUN curl -L https://sh.rustup.rs -sSf | \
-    sh -s -- -q -y --default-toolchain $VERSION --component clippy rustfmt --profile minimal --no-modify-path && \
+    sh -s -- -q -y --default-toolchain $VERSION --component clippy --component llvm-tools-preview rustfmt --profile minimal --no-modify-path && \
     chmod -R a+rw $RUSTUP_HOME $CARGO_HOME
 
 ## Set up default cargo env vars for cross compiling
