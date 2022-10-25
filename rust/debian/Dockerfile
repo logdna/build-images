@@ -44,10 +44,10 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     echo "built build image cargo-nextest" && \
     cargo install -q cargo-llvm-cov --root /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
-    echo "built build image cargo-xwin" && \
+    echo "built build image cargo-llvm-cov" && \
     cargo install -q cargo-xwin --version 0.9.2 --locked --root /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
-    echo "built build image cargo-llvm-cov" && \
+    echo "built build image cargo-xwin" && \
     cargo install -q --git https://github.com/flamegraph-rs/flamegraph \
         --tag v0.5.1 --locked --root /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
@@ -275,6 +275,9 @@ RUN rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl && \
     rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-gnu  && \
     rustup target add ${CROSS_COMPILER_TARGET_ARCH}-pc-windows-msvc  && \
     mkdir -p $XWIN_CACHE_DIR && chmod -R a+rw $RUSTUP_HOME $CARGO_HOME
+
+# Add llvm-target
+RUN rustup component list
 
 # Symlink llvm-rc as rc.exe
 RUN ln -s /usr/bin/llvm-rc $XWIN_TOOLKIT_BIN_PATH/rc.exe
