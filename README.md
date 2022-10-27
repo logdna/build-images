@@ -2,17 +2,17 @@
 
 ## CI Generated Images
 The CI job for this repo will generate tooling images with cross compilers
-targetting aarch64 and x86_64 for both linux/amd64 and linux/arm64
+targeting aarch64 and x86_64 for both linux/amd64 and linux/arm64
 platforms.
 
 Images are pushed by default by jobs on the main branch. Images on other
 branches can be pushed by setting the PUBLISH_GCR_IMAGE and/or
-PUBLISH_DOCKER_IMAGE params on the Jenkins build job
+PUBLISH_DOCKER_IMAGE params on the Jenkins build job.
 
 ### Image Tagging
 
 On all branches the image tags are appended with the git sha of the current
-revision. On main an additional tag without the trailing sha is also pushed
+revision. On main an additional tag without the trailing sha is also pushed.
 
 ## Helper scripts
 >  ./scripts/mk.debian
