@@ -9,7 +9,9 @@ pipeline {
   }
   triggers {
     issueCommentTrigger('.*test this please.*')
-    cron(env.BRANCH_NAME ==~ /\d\.\d/ ? 'H H 1,15 * *' : '')
+    parameterizedCron(
+        env.BRANCH_NAME ==~ main ? 'H 8 * * 7 % PUBLISH_GCR_IMAGE=true;PUBLISH_ICR_IMAGE=true' : ''
+    )
   }
   environment {
     DOCKER_BUILDKIT='1'
