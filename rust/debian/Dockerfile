@@ -52,11 +52,11 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
         --tag v0.5.1 --locked --root /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-flamegraph" && \
-    cargo install -q cargo-cache --version 0.8.2 --locked --root /out/tools \
+    cargo install -q cargo-cache --version 0.8.3 --locked --root /out/tools \
         --no-default-features --features ci-autoclean,vendored-libgit \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-cache" && \
-    cargo install -q cargo-audit --version 0.16.0 --locked --root /out/tools \
+    cargo install -q cargo-audit --version 0.17.4 --locked --root /out/tools \
         --no-default-features --features vendored-openssl,vendored-libgit2 \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-audit" && \
