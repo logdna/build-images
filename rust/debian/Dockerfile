@@ -310,4 +310,6 @@ ENV PKG_CONFIG_ALLOW_CROSS=true \
     LIBZ_SYS_STATIC=1 \
     PLATFORM_LDFLAGS="-static-libstdc++ -static-libgcc"
 
+ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
+
 CMD ["bash"]
