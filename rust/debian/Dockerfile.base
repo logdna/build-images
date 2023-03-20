@@ -127,4 +127,6 @@ ENV CFLAGS_x86_64_unknown_linux_gnu="--target=x86_64-unknown-linux-gnu -fuse-ld=
 ENV CXX_x86_64_unknown_linux_gnu="clang++"
 ENV CXXFLAGS_x86_64_unknown_linux_gnu="--target=x86_64-unknown-linux-gnu -fuse-ld=lld -fPIC"
 
+ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
+
 CMD ["bash"]
