@@ -40,7 +40,7 @@ pipeline {
         axes {
           axis {
             name 'RUSTC_VERSION'
-            values 'stable', 'beta'
+            values 'stable', 'beta', 'nightly'
           }
           axis {
             name 'VARIANT_VERSION'
@@ -118,7 +118,7 @@ pipeline {
         axes {
           axis {
             name 'RUSTC_VERSION'
-            values 'stable', 'beta'
+            values 'stable', 'beta', 'nightly'
           }
           axis {
             name 'VARIANT_VERSION'
@@ -155,7 +155,7 @@ pipeline {
         axes {
           axis {
             name 'RUSTC_VERSION'
-            values 'stable', 'beta'
+            values 'stable', 'beta', 'nightly'
           }
           axis {
             name 'VARIANT_VERSION'
@@ -303,7 +303,7 @@ pipeline {
         axes {
           axis {
             name 'RUSTC_VERSION'
-            values 'stable', 'beta'
+            values 'stable', 'beta', 'nightly'
           }
           axis {
             name 'VARIANT_VERSION'
