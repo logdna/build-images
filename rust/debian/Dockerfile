@@ -17,6 +17,8 @@ ARG SCCACHE_ENDPOINT
 ARG SCCACHE_RECACHE
 ARG SCCACHE_SERVER_PORT=4226
 
+ARG CARGO_BINSTALL_URL_BASE="https://github.com/cargo-bins/cargo-binstall/releases/latest/download"
+
 RUN rustup target add "${!TARGETARCH}-unknown-linux-musl"
 
 RUN dpkg --add-architecture ${TARGETARCH} && \
@@ -29,38 +31,45 @@ ENV CC_x86_64_unknown_linux_musl=clang
 ENV CFLAGS_x86_64_unknown_linux_musl="-isystem /usr/include/x86_64-linux-musl"
 
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
-    mkdir -p /out/tools && \
+    mkdir -p /out/tools /usr/local/bin/ && \
     # Install sccache for this image \
-    cargo install -q sccache --root "/usr/local" --no-default-features --features s3,azure,openssl/vendored && \
+    curl -LsSf "${CARGO_BINSTALL_URL_BASE}/cargo-binstall-${!BUILDARCH}-unknown-linux-musl.tgz" \
+    | tar -xzC /usr/local/bin/ && \
+    cargo binstall -y -q sccache --version 0.3 --no-symlinks --install-path /usr/local/bin \
+        --target=${!BUILDARCH}-unknown-linux-musl && \
     echo "installed build build image sccache" && \
     if [ -n "$SCCACHE_BUCKET" ]; then export RUSTC_WRAPPER=/usr/local/bin/sccache; fi && \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi && \
-    # Add sccache cargo-flamegraph, cargo-audit and cargo-cache \
-    cargo install -q sccache --root /out/tools --no-default-features --features s3,azure,openssl/vendored \
+    if [ ! -z ${RUSTC_WRAPPER+x} ]; then echo "starting sccache server"; while sccache --start-server; do echo "starting sccache server"; done; fi; \
+    # Add sccache cargo-flamegraph, cargo-audit, cargo-cache, etc \
+    cargo install -q sccache --root /out/tools --version 0.3.3 \
+        --features=azure,s3,openssl/vendored --no-default-features \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image sccache" && \
-    cargo install -q cargo-nextest --root /out/tools \
+    cargo binstall -y -q cargo-nextest --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-nextest" && \
-    cargo install -q cargo-llvm-cov --root /out/tools \
-        --target=${!TARGETARCH}-unknown-linux-musl && \
-    echo "built build image cargo-xwin" && \
-    cargo install -q cargo-xwin --version 0.9.2 --locked --root /out/tools \
+    cargo binstall -y -q cargo-llvm-cov --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-llvm-cov" && \
-    cargo install -q --git https://github.com/flamegraph-rs/flamegraph \
-        --tag v0.5.1 --locked --root /out/tools \
+    cargo binstall -y -q cargo-xwin \
+        --pkg-url="{ repo }/releases/download/v{ version }/{ name }-v{ version }.{ target }.{ archive-format }" \
+        --version 0.14 --no-symlinks --install-path /out/tools \
+        --target=${!TARGETARCH}-unknown-linux-musl && \
+    echo "built build image cargo-xwin" && \
+    cargo binstall -y -q cargo-tarpaulin --version 0.25 --no-symlinks --install-path /out/tools \
+        --target=${!TARGETARCH}-unknown-linux-musl && \
+    echo "built build image cargo-tarpaulin" && \
+    cargo binstall -y -q flamegraph --version 0.6 --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-flamegraph" && \
-    cargo install -q cargo-cache --version 0.8.3 --locked --root /out/tools \
-        --no-default-features --features ci-autoclean,vendored-libgit \
+    cargo binstall -y -q cargo-cache --version 0.8 --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-cache" && \
-    cargo install -q cargo-audit --version 0.17.4 --locked --root /out/tools \
-        --no-default-features --features vendored-openssl,vendored-libgit2 \
+    cargo binstall -y -q cargo-audit --version 0.17 --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-audit" && \
-    sccache --show-stats
+    if [ -n "$SCCACHE_BUCKET" ]; then sccache --show-stats; fi
 
 ENV RUSTC_WRAPPER="/usr/local/bin/sccache"
 ENV CC_WRAPPER="/usr/local/bin/sccache"
@@ -187,7 +196,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     # sysroot \
     ./configure --static --shared --prefix=$LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl || cat configure.log && \
     make install && \
-    sccache --show-stats && \
+    if [ -n "$SCCACHE_BUCKET" ]; then sccache --show-stats; fi; \
     rm -r /tmp/zlib
 
 
@@ -210,7 +219,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     DISABLE_WARNING_AS_ERROR=1 make static_lib && \
     cp librocksdb.a* $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib && \
     cp -r include/* $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/ && \
-    sccache --show-stats && \
+    if [ -n "$SCCACHE_BUCKET" ]; then sccache --show-stats; fi; \
     rm -R /tmp/rocksdb/
 
 
