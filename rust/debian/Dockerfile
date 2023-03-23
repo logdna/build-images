@@ -72,6 +72,12 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     cargo binstall -y -q cargo-udeps --version 0.1 --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-udeps" && \
+    cargo binstall -y -q cargo-edit --version 0.11 --no-symlinks --install-path /out/tools \
+        --target=${!TARGETARCH}-unknown-linux-musl && \
+    echo "built build image cargo-edit" && \
+    cargo binstall -y -q semantic-release-cargo --version 2 --no-symlinks --install-path /out/tools \
+        --target=${!TARGETARCH}-unknown-linux-musl && \
+    echo "built build image semantic-release-cargo" && \
     if [ -n "$SCCACHE_BUCKET" ]; then sccache --show-stats; fi
 
 ENV RUSTC_WRAPPER="/usr/local/bin/sccache"
