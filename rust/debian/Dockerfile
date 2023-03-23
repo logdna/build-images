@@ -33,7 +33,7 @@ ENV CFLAGS_x86_64_unknown_linux_musl="-isystem /usr/include/x86_64-linux-musl"
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     mkdir -p /out/tools /usr/local/bin/ && \
     # Install sccache for this image \
-    curl -LsSf "${CARGO_BINSTALL_URL_BASE}/cargo-binstall-${!BUILDARCH}-unknown-linux-musl.tgz" \
+    curl --retry 10 -LsSf "${CARGO_BINSTALL_URL_BASE}/cargo-binstall-${!BUILDARCH}-unknown-linux-musl.tgz" \
     | tar -xzC /usr/local/bin/ && \
     cargo binstall -y -q sccache --version 0.3 --no-symlinks --install-path /usr/local/bin \
         --target=${!BUILDARCH}-unknown-linux-musl && \
@@ -96,7 +96,7 @@ RUN cd /tmp && \
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
-    curl -fSLo /tmp/musl.tar.gz https://www.musl-libc.org/releases/musl-$MUSL_VERSION.tar.gz && \
+    curl --retry 10 -fsSLo /tmp/musl.tar.gz https://www.musl-libc.org/releases/musl-$MUSL_VERSION.tar.gz && \
     tar -C /tmp -xf /tmp/musl.tar.gz && \
     cd /tmp/musl-$MUSL_VERSION && \
     MAKEFLAGS="--silent -j $(nproc)" && \
@@ -140,7 +140,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     export MAKEFLAGS="--silent -j $(nproc)" && \
     export REPOS=/tmp/llvm-project && \
     cd /tmp && mkdir -p $REPOS && \
-    curl -fSLO https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/llvm-project-${LLVM_VERSION}.src.tar.xz && \
+    curl --retry 10 -fsSLO https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/llvm-project-${LLVM_VERSION}.src.tar.xz && \
     tar -C $REPOS --strip-components=1 -xf llvm-project-${LLVM_VERSION}.src.tar.xz && \
     # Generate host headers needed to build clang headers for ${CROSS_COMPILER_TARGET} \
     cd $REPOS/llvm && mkdir build && cd build && \
@@ -182,7 +182,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
     export MAKEFLAGS="--silent -j $(nproc)" && \
     mkdir -p /tmp/zlib && cd /tmp/zlib && \
-    curl -fLO "http://zlib.net/zlib-$ZLIB_VERSION.tar.gz" && \
+    curl --retry 10 -sSfLO "http://zlib.net/zlib-$ZLIB_VERSION.tar.gz" && \
     tar xzf "zlib-$ZLIB_VERSION.tar.gz" && cd "zlib-$ZLIB_VERSION" && \
     echo "Building zlib" && \
     cd /tmp/zlib/zlib-$ZLIB_VERSION && \

@@ -78,7 +78,7 @@ RUN if [[ "${VARIANT_VERSION}" != "buster" ]] ; then \
     git clone --recurse-submodules https://github.com/GNOME/msitools.git && \
     mkdir ./msitools/target && pushd ./msitools/target && \
     meson .. && ninja install && popd && rm -rf ./msitools && ldconfig && wixl --version && \
-    mkdir ./miniconda && curl -s https://repo.anaconda.com/miniconda/Miniconda3-py37_4.12.0-Linux-$(uname -m).sh -o ./miniconda/setup.sh && \
+    mkdir ./miniconda && curl --retry 10 -sSfL https://repo.anaconda.com/miniconda/Miniconda3-py37_4.12.0-Linux-$(uname -m).sh -o ./miniconda/setup.sh && \
     bash ./miniconda/setup.sh -b -p /opt/miniconda3 && rm -rf ./miniconda && \
     source /opt/miniconda3/etc/profile.d/conda.sh && conda install -y pytest flask && \
     apt autoremove -y meson valac-bin valac valac-0.48-vapi bats bison > /dev/null && \
@@ -92,7 +92,7 @@ ARG VERSION="stable"
 
 # Install rust
 ENV CARGO_HOME=/opt/rust/cargo
-RUN curl -L https://sh.rustup.rs -sSf | \
+RUN curl --retry 10 -sSfL https://sh.rustup.rs -sSf | \
     sh -s -- -q -y --default-toolchain $VERSION --component clippy --component llvm-tools-preview rustfmt --profile minimal --no-modify-path && \
     chmod -R a+rw $RUSTUP_HOME $CARGO_HOME
 
