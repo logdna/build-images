@@ -35,14 +35,15 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     # Install sccache for this image \
     curl -LsSf "${CARGO_BINSTALL_URL_BASE}/cargo-binstall-${!BUILDARCH}-unknown-linux-musl.tgz" \
     | tar -xzC /usr/local/bin/ && \
-    cargo binstall -y -q sccache --no-symlinks --install-path /usr/local/bin \
+    cargo binstall -y -q sccache --version 0.3 --no-symlinks --install-path /usr/local/bin \
         --target=${!BUILDARCH}-unknown-linux-musl && \
     echo "installed build build image sccache" && \
     if [ -n "$SCCACHE_BUCKET" ]; then export RUSTC_WRAPPER=/usr/local/bin/sccache; fi && \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi && \
     if [ ! -z ${RUSTC_WRAPPER+x} ]; then echo "starting sccache server"; while sccache --start-server; do echo "starting sccache server"; done; fi; \
-    # Add sccache cargo-flamegraph, cargo-audit and cargo-cache \
-    cargo binstall -y -q sccache --install-path /out/tools \
+    # Add sccache cargo-flamegraph, cargo-audit, cargo-cache, etc \
+    cargo install -q sccache --root /out/tools --version 0.3.3 \
+        --features=azure,s3,openssl/vendored --no-default-features \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image sccache" && \
     cargo binstall -y -q cargo-nextest --no-symlinks --install-path /out/tools \
