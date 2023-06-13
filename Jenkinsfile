@@ -1,4 +1,5 @@
 library 'magic-butler-catalogue'
+def TRIGGER_PATTERN = '.*@logdnabot.*'
 
 pipeline {
   agent none
@@ -8,7 +9,8 @@ pipeline {
     ansiColor 'xterm'
   }
   triggers {
-    issueCommentTrigger('.*@logdnabot.*')
+
+    issueCommentTrigger(TRIGGER_PATTERN)
     parameterizedCron(
         env.BRANCH_NAME ==~ 'main' ? 'H 8 * * 7 % PUBLISH_GCR_IMAGE=true;PUBLISH_ICR_IMAGE=true' : ''
     )
@@ -31,7 +33,8 @@ pipeline {
         }
       }
       steps {
-        error("A maintainer needs to approve this PR for with comment containing '.*@logdnabot.*'")
+
+        error("A maintainer needs to approve this PR for with comment containing ${TRIGGER_PATTERN}")
       }
     }
 
@@ -49,8 +52,8 @@ pipeline {
           // Host architecture of the built image
           axis {
             name 'PLATFORM'
-            // Support for x86_64 and arm64 for Mac M1s/AWS graviton devs/builders
-            values 'linux/amd64', 'linux/arm64'
+            // Support for x86_64 and arm64 and s390x for Mac M1s/AWS graviton devs/builders
+            values 'linux/amd64', 'linux/arm64', 'linux/s390x'
           }
         }
         agent {
@@ -164,12 +167,12 @@ pipeline {
           // Target ISA for musl cross comp toolchain and precompiled libs
           axis {
             name 'CROSS_COMPILER_TARGET_ARCH'
-            values 'x86_64', 'aarch64'
+            values 'x86_64', 'aarch64', 's390x'
           }
           // Host architecture of the built image
           axis {
             name 'PLATFORM'
-            values 'linux/amd64', 'linux/arm64'
+            values 'linux/amd64', 'linux/arm64', 'linux/s390x'
           }
         }
         agent {
@@ -312,7 +315,7 @@ pipeline {
           // Target ISA for musl cross comp toolchain and precompiled libs
           axis {
             name 'CROSS_COMPILER_TARGET_ARCH'
-            values 'x86_64', 'aarch64'
+            values 'x86_64', 'aarch64', 's390x'
           }
         }
         agent {
@@ -559,6 +562,15 @@ def createMultiArchImageManifest(Map config = [:]){
       , image_suffix: "${config.image_suffix}-linux-arm64"
       , append_git_sha: append_git_sha
       )
-  sh("docker manifest create ${manifest_name} --amend ${arm64_image_name} --amend ${amd64_image_name}")
+  def s390x_image_name = generateImageName(
+      repo_base: repo_base
+      , name: config.name
+      , variant_base: config.variant_base
+      , variant_version: config.variant_version
+      , version: config.version
+      , image_suffix: "${config.image_suffix}-linux-s390x"
+      , append_git_sha: append_git_sha
+      )
+  sh("docker manifest create ${manifest_name} --amend ${arm64_image_name} --amend ${amd64_image_name} --amend ${s390x_image_name}")
   return manifest_name
 }

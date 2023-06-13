@@ -1,4 +1,4 @@
-ARG CROSS_COMPILER_TARGET_ARCH=x86_64
+ARG CROSS_COMPILER_TARGET_ARCH=blank
 ARG BASE_IMAGE=logdna/build-images/rust-buster-1-stable-base-${CROSS_COMPILER_TARGET_ARCH}
 
 # Image that runs natively on the BUILDPLATFORM to produce cross compile
@@ -29,6 +29,8 @@ ENV CC_aarch64_unknown_linux_musl=clang
 ENV CFLAGS_aarch64_unknown_linux_musl="-isystem /usr/include/aarch64-linux-musl"
 ENV CC_x86_64_unknown_linux_musl=clang
 ENV CFLAGS_x86_64_unknown_linux_musl="-isystem /usr/include/x86_64-linux-musl"
+ENV CC_s390x_unknown_linux_musl=clang
+ENV CFLAGS_s390x_unknown_linux_musl="-isystem /usr/include/s390x-linux-musl"
 
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     mkdir -p /out/tools /usr/local/bin/ && \
@@ -271,10 +273,13 @@ RUN mkdir -p /usr/local/rocksdb/${CROSS_COMPILER_TARGET_ARCH}-linux-musl/include
 RUN printf "#!/usr/bin/env bash\nclang -fuse-ld=lld --target=aarch64-unknown-linux-musl \$@" > /usr/local/bin/aarch64-unknown-linux-musl-clang && \
     chmod +x /usr/local/bin/aarch64-unknown-linux-musl-clang && \
     printf "#!/usr/bin/env bash\nclang -fuse-ld=lld --target=x86_64-unknown-linux-musl \$@" > /usr/local/bin/x86_64-unknown-linux-musl-clang && \
-    chmod +x /usr/local/bin/x86_64-unknown-linux-musl-clang
+    chmod +x /usr/local/bin/x86_64-unknown-linux-musl-clang && \
+    printf "#!/usr/bin/env bash\nclang -fuse-ld=lld --target=s390x-unknown-linux-musl \$@" > /usr/local/bin/s390x-unknown-linux-musl-clang && \
+    chmod +x /usr/local/bin/s390x-unknown-linux-musl-clang
 
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER="/usr/local/bin/aarch64-unknown-linux-musl-clang"
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER="/usr/local/bin/x86_64-unknown-linux-musl-clang"
+ENV CARGO_TARGET_s390x_UNKNOWN_LINUX_MUSL_LINKER="/usr/local/bin/s390x-unknown-linux-musl-clang"
 
 ENV XWIN_CACHE_DIR="${CARGO_HOME}/xwin"
 ENV XWIN_TOOLKIT_BIN_PATH="/usr/local/bin"
@@ -303,6 +308,7 @@ ENV STATIC_RUSTFLAGS="${COMMON_RUSTFLAGS} -Ctarget-feature=+crt-static -Clink-ar
 
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="${STATIC_RUSTFLAGS} -Clink-args=--target=aarch64-unknown-linux-musl"
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="${STATIC_RUSTFLAGS} -Clink-args=--target=x86_64-unknown-linux-musl"
+ENV CARGO_TARGET_s390x_UNKNOWN_LINUX_MUSL_RUSTFLAGS="${STATIC_RUSTFLAGS} -Clink-args=--target=s390x-unknown-linux-musl"
 
 ENV CC_aarch64_unknown_linux_musl="clang"
 ENV CFLAGS_aarch64_unknown_linux_musl="--target=aarch64-unknown-linux-musl -fuse-ld=lld -static -fPIC -nostdlib -nodefaultlibs -nostdinc -isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/aarch64-unknown-linux-musl/include/ -isystem $LLVM_SYSROOT/usr/include/linux/ -L ${LLVM_SYSROOT}/usr/aarch64-unknown-linux-musl/lib -lc  -L ${LLVM_SYSROOT}/usr/lib/linux/ -lclang_rt.builtins-aarch64"
@@ -313,6 +319,11 @@ ENV CC_x86_64_unknown_linux_musl="clang"
 ENV CFLAGS_x86_64_unknown_linux_musl="--target=x86_64-unknown-linux-musl -fuse-ld=lld -static -fPIC -nostdlib -nodefaultlibs -nostdinc -isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/x86_64-unknown-linux-musl/include/ -isystem $LLVM_SYSROOT/usr/include/linux/ -L ${LLVM_SYSROOT}/usr/x86_64-unknown-linux-musl/lib -lc  -L ${LLVM_SYSROOT}/usr/lib/linux/ -lclang_rt.builtins-x86_64"
 ENV CXX_x86_64_unknown_linux_musl="clang++"
 ENV CXXFLAGS_x86_64_unknown_linux_musl="--target=x86_64-unknown-linux-musl -fuse-ld=lld -nostdinc -static-libstdc++ --stdlib=c++ --rtlib=compiler-rt -nodefaultlibs -nostdinc++ -isystem $LLVM_SYSROOT/usr/include/c++/v1/ -isystem $LLVM_SYSROOT/usr/x86_64-unknown-linux-musl/include/  -isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/x86_64-unknown-linux-musl/include/ -isystem $LLVM_SYSROOT/usr/include/linux/ "
+
+ENV CC_s390x_unknown_linux_musl="clang"
+ENV CFLAGS_s390x_unknown_linux_musl="--target=s390x-unknown-linux-musl -fuse-ld=lld -static -fPIC -nostdlib -nodefaultlibs -nostdinc -isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/s390x-unknown-linux-musl/include/ -isystem $LLVM_SYSROOT/usr/include/linux/ -L ${LLVM_SYSROOT}/usr/x86_64-unknown-linux-musl/lib -lc  -L ${LLVM_SYSROOT}/usr/lib/linux/ -lclang_rt.builtins-x86_64"
+ENV CXX_s390x_unknown_linux_musl="clang++"
+ENV CXXFLAGS_s390x_unknown_linux_musl="--target=s390x-unknown-linux-musl -fuse-ld=lld -nostdinc -static-libstdc++ --stdlib=c++ --rtlib=compiler-rt -nodefaultlibs -nostdinc++ -isystem $LLVM_SYSROOT/usr/include/c++/v1/ -isystem $LLVM_SYSROOT/usr/s390x-unknown-linux-musl/include/  -isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/s390x-unknown-linux-musl/include/ -isystem $LLVM_SYSROOT/usr/include/linux/ "
 
 ENV PCRE2_SYS_STATIC=1
 ENV SYSTEMD_LIB_DIR="/lib/${CROSS_COMPILER_TARGET_ARCH}-linux-gnu"
