@@ -1,4 +1,5 @@
 ARG VARIANT_VERSION=buster
+ARG CROSS_COMPILER_TARGET_ARCH="$(uname -m)"
 FROM buildpack-deps:${VARIANT_VERSION}-curl
 
 # Needs to be in this scope too
@@ -25,6 +26,7 @@ ENV amd64=x86_64
 ENV arm64=aarch64
 ENV x86_64=amd64
 ENV aarch64=arm64
+ENV s390x=s390x
 
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US
@@ -72,7 +74,7 @@ RUN unmunch /usr/share/hunspell/en_GB.dic /usr/share/hunspell/en_GB.aff 2> /dev/
 ################################################################################################
 
 # msitools not avail on buster
-RUN if [[ "${VARIANT_VERSION}" != "buster" ]] ; then \
+RUN if [[ "${CROSS_COMPILER_TARGET_ARCH}" != "s390x" ]] ; then \
     apt update -y && \
     apt install -y meson valac-bin valac valac-0.48-vapi libgsf-1-dev bats bison libgcab-dev libgirepository1.0-dev wine && \
     git clone --recurse-submodules https://github.com/GNOME/msitools.git && \
@@ -109,12 +111,20 @@ ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=clang
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_AR=llvm-ar
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="-Clink-args=-fuse-ld=lld \
                                                       -Clink-args=--target=x86_64-unknown-linux-musl"
+
+ENV CARGO_TARGET_s390x_UNKNOWN_LINUX_MUSL_LINKER=clang
+ENV CARGO_TARGET_s390x_UNKNOWN_LINUX_MUSL_AR=llvm-ar
+ENV CARGO_TARGET_s390x_UNKNOWN_LINUX_MUSL_RUSTFLAGS="-Clink-args=-fuse-ld=lld \
+                                                      -Clink-args=--target=s390x-unknown-linux-musl"
 # Teach cargo to use clang as the linker driver
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=clang
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_AR=llvm-ar
 
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_AR=llvm-ar
+
+ENV CARGO_TARGET_s390x_UNKNOWN_LINUX_GNU_LINKER=clang
+ENV CARGO_TARGET_s390x_UNKNOWN_LINUX_GNU_AR=llvm-ar
 
 # Set up basic gnu C configuration for to use clang as the linker driver, llvm-ar, ETC
 ENV CC_aarch64_unknown_linux_gnu="clang"
@@ -126,6 +136,11 @@ ENV CC_x86_64_unknown_linux_gnu="clang"
 ENV CFLAGS_x86_64_unknown_linux_gnu="--target=x86_64-unknown-linux-gnu -fuse-ld=lld -fPIC"
 ENV CXX_x86_64_unknown_linux_gnu="clang++"
 ENV CXXFLAGS_x86_64_unknown_linux_gnu="--target=x86_64-unknown-linux-gnu -fuse-ld=lld -fPIC"
+
+ENV CC_s390x_unknown_linux_gnu="clang"
+ENV CFLAGS_s390x_unknown_linux_gnu="--target=s390x-unknown-linux-gnu -fuse-ld=lld -fPIC"
+ENV CXX_s390x_unknown_linux_gnu="clang++"
+ENV CXXFLAGS_s390x_unknown_linux_gnu="--target=s390x-unknown-linux-gnu -fuse-ld=lld -fPIC"
 
 ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
 
