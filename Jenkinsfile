@@ -8,7 +8,7 @@ pipeline {
     ansiColor 'xterm'
   }
   triggers {
-    issueCommentTrigger('.*test this please.*')
+    issueCommentTrigger('.*@logdnabot.*')
     parameterizedCron(
         env.BRANCH_NAME ==~ 'main' ? 'H 8 * * 7 % PUBLISH_GCR_IMAGE=true;PUBLISH_ICR_IMAGE=true' : ''
     )
@@ -31,7 +31,7 @@ pipeline {
         }
       }
       steps {
-        error("A maintainer needs to approve this PR with a comment of '${TRIGGER_STRING}'")
+        error("A maintainer needs to approve this PR for with comment containing '.*@logdnabot.*'")
       }
     }
 
