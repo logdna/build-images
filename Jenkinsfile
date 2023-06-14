@@ -25,9 +25,12 @@ pipeline {
   stages {
     stage('Validate PR Source') {
       when {
-        expression { env.CHANGE_FORK }
+        //expression { env.CHANGE_FORK }
         not {
-            triggeredBy 'issueCommentCause'
+            anyOf {
+                triggeredBy 'issueCommentCause'
+                triggeredBy 'UserIdCause'
+            }
         }
       }
       steps {
