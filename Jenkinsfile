@@ -1,5 +1,4 @@
 library 'magic-butler-catalogue'
-def TRIGGER_PATTERN = '.*@logdnabot.*'
 
 pipeline {
   agent none
@@ -10,7 +9,7 @@ pipeline {
   }
   triggers {
 
-    issueCommentTrigger(TRIGGER_PATTERN)
+    issueCommentTrigger('.*@logdnabot.*')
     parameterizedCron(
         env.BRANCH_NAME ==~ 'main' ? 'H 8 * * 7 % PUBLISH_GCR_IMAGE=true;PUBLISH_ICR_IMAGE=true' : ''
     )
@@ -34,7 +33,7 @@ pipeline {
       }
       steps {
 
-        error("A maintainer needs to approve this PR for with comment containing ${TRIGGER_PATTERN}")
+        error("A maintainer needs to approve this PR for with comment containing '.*@logdnabot.*'")
       }
     }
 
