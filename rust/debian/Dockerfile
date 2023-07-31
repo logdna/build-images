@@ -203,28 +203,38 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     rm -r /tmp/zlib
 
 
+ENV ROCKSDB_VERSIONS="7.4.4 8.3.2"
+
 ## Install static -fPIC Rocksdb
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
-    echo "Building rocksdb" && \
-    git clone https://github.com/facebook/rocksdb.git --branch v7.4.4 --depth=1 /tmp/rocksdb; \
-    cd /tmp/rocksdb && \
-    export MAKEFLAGS="--silent -j $(nproc)"; \
-    export USE_CLANG=1 TARGET_OS=Linux PORTABLE=1 AR=llvm-ar; \
-    export TARGET_ARCHITECTURE=${CROSS_COMPILER_TARGET_ARCH}; \
-    export C_INCLUDES="-isystem $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/ -isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/include/"; \
-    export CC="$CC_WRAPPER clang --target=${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl"; \
-    export EXTRA_CFLAGS="-nostdinc -fPIC $C_INCLUDES -nostdlib -nostdlib++ -nodefaultlibs -Wno-unused-command-line-argument"; \
-    export CXX="$CC_WRAPPER clang++ -nostdlib++ -fuse-ld=lld --target=${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl"; \
-    export EXTRA_CXXFLAGS="-nostdinc -nostdinc++ -fPIC -isystem $LLVM_SYSROOT/usr/include/c++/v1/ -isystem $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/ -D _LIBCPP_HAS_MUSL_LIBC $C_INCLUDES -Wno-unused-command-line-argument "; \
-    export CFLAGS="$EXTRA_CFLAGS -L$LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib"; \
-    DISABLE_WARNING_AS_ERROR=1 make static_lib && \
-    cp librocksdb.a* $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib && \
-    cp -r include/* $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/ && \
-    if [ -n "$SCCACHE_BUCKET" ]; then sccache --show-stats; fi; \
-    rm -R /tmp/rocksdb/
+    for ROCKSDB_VERSION in $ROCKSDB_VERSIONS; do \
+      echo "Building rocksdb" && \
+      git clone https://github.com/facebook/rocksdb.git --branch v$ROCKSDB_VERSION --depth=1 /tmp/rocksdb-$ROCKSDB_VERSION && \
+      cd /tmp/rocksdb-$ROCKSDB_VERSION && \
+      export MAKEFLAGS="--silent -j $(nproc)"; \
+      export USE_CLANG=1 TARGET_OS=Linux PORTABLE=1 AR=llvm-ar; \
+      export TARGET_ARCHITECTURE=${CROSS_COMPILER_TARGET_ARCH}; \
+      export C_INCLUDES="-isystem $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/ -isystem $LLVM_SYSROOT/usr/lib/clang/${LLVM_VERSION}/include/ -isystem $LLVM_SYSROOT/usr/include/"; \
+      export CC="$CC_WRAPPER clang --target=${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl"; \
+      export EXTRA_CFLAGS="-nostdinc -fPIC $C_INCLUDES -nostdlib -nostdlib++ -nodefaultlibs -Wno-unused-command-line-argument"; \
+      export CXX="$CC_WRAPPER clang++ -nostdlib++ -fuse-ld=lld --target=${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl"; \
+      export EXTRA_CXXFLAGS="-nostdinc -nostdinc++ -fPIC -isystem $LLVM_SYSROOT/usr/include/c++/v1/ -isystem $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/ -D _LIBCPP_HAS_MUSL_LIBC $C_INCLUDES -Wno-unused-command-line-argument "; \
+      export CFLAGS="$EXTRA_CFLAGS -L$LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib"; \
+      DISABLE_WARNING_AS_ERROR=1 make static_lib && \
+      mkdir -p $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib/rocksdb-$ROCKSDB_VERSION \
+               $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/rocksdb-$ROCKSDB_VERSION && \
+      cp librocksdb.a* $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib/rocksdb-$ROCKSDB_VERSION && \
+      cp -r include/* $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/rocksdb-$ROCKSDB_VERSION/ && \
+      if [ -n "$SCCACHE_BUCKET" ]; then sccache --show-stats; fi; \
+      cd - ; \
+      rm -R /tmp/rocksdb-$ROCKSDB_VERSION; \
+    done;
 
+# Put 7.4.4 at global location for < 3.9 versions to find
+RUN cp $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib/rocksdb-7.4.4/librocksdb.a* $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/lib/ && \
+    cp -r $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/rocksdb-7.4.4/* $LLVM_SYSROOT/usr/${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl/include/
 
 #############################################################################
 ## The Cross Compile image
