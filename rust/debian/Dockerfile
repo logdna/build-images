@@ -99,6 +99,7 @@ RUN cd /tmp && \
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
+    if [ ! -z ${RUSTC_WRAPPER+x} ]; then echo "starting sccache server"; while sccache --start-server; do echo "starting sccache server"; done; fi; \
     curl --retry 10 -fsSLo /tmp/musl.tar.gz https://www.musl-libc.org/releases/musl-$MUSL_VERSION.tar.gz && \
     tar -C /tmp -xf /tmp/musl.tar.gz && \
     cd /tmp/musl-$MUSL_VERSION && \
@@ -138,6 +139,7 @@ ENV CMAKE_CROSS="$CMAKE_COMMAND $CMAKE_CROSS_ARGS"
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
+    if [ ! -z ${RUSTC_WRAPPER+x} ]; then echo "starting sccache server"; while sccache --start-server; do echo "starting sccache server"; done; fi; \
     if [ -z "$CC_WRAPPER" ]; then export CMAKE_LAUNCHERS="-DCMAKE_C_COMPILER_LAUNCHER=$CC_WRAPPER -DCMAKE_CXX_COMPILER_LAUNCHER=$CC_WRAPPER"; fi; \
     # Download and extract LLVM tarball for ${LLVM_VERSION} \
     export MAKEFLAGS="--silent -j $(nproc)" && \
@@ -183,6 +185,7 @@ ARG ZLIB_VERSION=1.2.13
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
+    if [ ! -z ${RUSTC_WRAPPER+x} ]; then echo "starting sccache server"; while sccache --start-server; do echo "starting sccache server"; done; fi; \
     export MAKEFLAGS="--silent -j $(nproc)" && \
     mkdir -p /tmp/zlib && cd /tmp/zlib && \
     curl --retry 10 -sSfLO "http://zlib.net/zlib-$ZLIB_VERSION.tar.gz" && \
@@ -209,6 +212,7 @@ ENV ROCKSDB_VERSIONS="7.4.4 8.3.2"
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi; \
+    if [ ! -z ${RUSTC_WRAPPER+x} ]; then echo "starting sccache server"; while sccache --start-server; do echo "starting sccache server"; done; fi; \
     for ROCKSDB_VERSION in $ROCKSDB_VERSIONS; do \
       echo "Building rocksdb" && \
       git clone https://github.com/facebook/rocksdb.git --branch v$ROCKSDB_VERSION --depth=1 /tmp/rocksdb-$ROCKSDB_VERSION && \
