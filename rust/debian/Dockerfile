@@ -66,7 +66,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     cargo binstall -y -q cargo-cache --version 0.8 --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-cache" && \
-    cargo binstall -y -q cargo-audit --version 0.17 --no-symlinks --install-path /out/tools \
+    cargo binstall -y -q cargo-audit --version 0.18.1 --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-audit" && \
     cargo binstall -y -q cargo-udeps --version 0.1 --no-symlinks --install-path /out/tools \
