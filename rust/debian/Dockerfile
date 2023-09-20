@@ -188,7 +188,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ ! -z ${RUSTC_WRAPPER+x} ]; then echo "starting sccache server"; while sccache --start-server; do echo "starting sccache server"; done; fi; \
     export MAKEFLAGS="--silent -j $(nproc)" && \
     mkdir -p /tmp/zlib && cd /tmp/zlib && \
-    curl --retry 10 -sSfLO "http://zlib.net/zlib-$ZLIB_VERSION.tar.gz" && \
+    curl --retry 10 -sSfLO "https://zlib.net/fossils/zlib-$ZLIB_VERSION.tar.gz" && \
     tar xzf "zlib-$ZLIB_VERSION.tar.gz" && cd "zlib-$ZLIB_VERSION" && \
     echo "Building zlib" && \
     cd /tmp/zlib/zlib-$ZLIB_VERSION && \
