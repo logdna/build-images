@@ -35,8 +35,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     # Install sccache for this image \
     curl --retry 10 -LsSf "${CARGO_BINSTALL_URL_BASE}/cargo-binstall-${!BUILDARCH}-unknown-linux-musl.tgz" \
     | tar -xzC /usr/local/bin/ && \
-    cargo binstall -y -q sccache --version 0.3 --no-symlinks --install-path /usr/local/bin \
-        --target=${!BUILDARCH}-unknown-linux-musl && \
+    cargo install -q sccache --root "/usr/local/" --version 0.3.3 --features=azure,s3,openssl/vendored --no-default-features && \
     echo "installed build build image sccache" && \
     if [ -n "$SCCACHE_BUCKET" ]; then export RUSTC_WRAPPER=/usr/local/bin/sccache; fi && \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi && \
@@ -54,10 +53,10 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     echo "built build image cargo-llvm-cov" && \
     cargo binstall -y -q cargo-xwin \
         --pkg-url="{ repo }/releases/download/v{ version }/{ name }-v{ version }.{ target }.{ archive-format }" \
-        --version 0.14 --no-symlinks --install-path /out/tools \
+        --version 0.16 --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-xwin" && \
-    cargo binstall -y -q cargo-tarpaulin --version 0.25 --no-symlinks --install-path /out/tools \
+    cargo binstall -y -q cargo-tarpaulin --version 0.27 --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-tarpaulin" && \
     cargo binstall -y -q flamegraph --version 0.6 --no-symlinks --install-path /out/tools \
@@ -66,12 +65,13 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     cargo binstall -y -q cargo-cache --version 0.8 --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-cache" && \
-    cargo binstall -y -q cargo-audit --version 0.18.1 --no-symlinks --install-path /out/tools \
+    cargo binstall -y -q cargo-audit --version 0.19 --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-audit" && \
-    cargo binstall -y -q cargo-udeps --version 0.1 --no-symlinks --install-path /out/tools \
-        --target=${!TARGETARCH}-unknown-linux-musl && \
-    echo "built build image cargo-udeps" && \
+#    cargo install -q cargo-udeps --version '^0.1' --root /out/tools \
+#        --features=vendored-libgit2,vendored openssl \
+#        --target=${!TARGETARCH}-unknown-linux-musl && \
+#    echo "built build image cargo-udeps" && \
     if [ -n "$SCCACHE_BUCKET" ]; then sccache --show-stats; fi
 
 ENV RUSTC_WRAPPER="/usr/local/bin/sccache"
