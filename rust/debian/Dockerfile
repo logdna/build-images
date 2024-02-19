@@ -180,7 +180,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
 
 
 ## Install static Zlib
-ARG ZLIB_VERSION=1.2.13
+ARG ZLIB_VERSION=1.3
 
 RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     if [ -z "$SCCACHE_BUCKET" ]; then unset CC_WRAPPER; fi; \
