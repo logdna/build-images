@@ -74,8 +74,11 @@ RUN unmunch /usr/share/hunspell/en_GB.dic /usr/share/hunspell/en_GB.aff 2> /dev/
 
 # msitools not avail on buster
 RUN if [[ "${VARIANT_VERSION}" != "buster" ]] ; then \
+    dpkg --add-architecture i386 && \
+    mkdir -pm755 /etc/apt/keyrings && wget -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key && \
+    wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/debian/dists/"${VARIANT_VERSION}"/winehq-"${VARIANT_VERSION}".sources && \
     apt update -y && \
-    apt install -y meson valac-bin valac valac-0.48-vapi libgsf-1-dev bats bison libgcab-dev libgirepository1.0-dev wine && \
+    apt install -y meson valac-bin valac valac-0.48-vapi libgsf-1-dev bats bison libgcab-dev libgirepository1.0-dev winehq-stable && \
     git clone --recurse-submodules https://github.com/GNOME/msitools.git && \
     mkdir ./msitools/target && pushd ./msitools/target && \
     meson .. && ninja install && popd && rm -rf ./msitools && ldconfig && wixl --version && \
