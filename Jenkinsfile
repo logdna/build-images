@@ -47,7 +47,7 @@ pipeline {
           }
           axis {
             name 'VARIANT_VERSION'
-            values 'buster', 'bullseye'
+            values 'bullseye', 'bookworm'
           }
           // Host architecture of the built image
           axis {
@@ -125,7 +125,7 @@ pipeline {
           }
           axis {
             name 'VARIANT_VERSION'
-            values 'buster', 'bullseye'
+            values 'bullseye', 'bookworm'
           }
         }
         agent {
@@ -162,7 +162,7 @@ pipeline {
           }
           axis {
             name 'VARIANT_VERSION'
-            values 'buster', 'bullseye'
+            values 'bullseye', 'bookworm'
           }
           // Target ISA for musl cross comp toolchain and precompiled libs
           axis {
@@ -310,7 +310,7 @@ pipeline {
           }
           axis {
             name 'VARIANT_VERSION'
-            values 'buster', 'bullseye'
+            values 'bullseye', 'bookworm'
           }
           // Target ISA for musl cross comp toolchain and precompiled libs
           axis {

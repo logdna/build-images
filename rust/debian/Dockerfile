@@ -51,9 +51,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     cargo binstall -y -q cargo-llvm-cov --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-llvm-cov" && \
-    cargo binstall -y -q cargo-xwin \
-        --pkg-url="{ repo }/releases/download/v{ version }/{ name }-v{ version }.{ target }.{ archive-format }" \
-        --version 0.16 --no-symlinks --install-path /out/tools \
+    cargo binstall -y -q cargo-xwin --version 0.16 --locked --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-xwin" && \
     cargo binstall -y -q cargo-tarpaulin --version 0.27 --no-symlinks --install-path /out/tools \
@@ -115,7 +113,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     make install-headers
 
 # Configure cmake for building llvm headers, compiler-rt and builtins
-ENV CMAKE_COMMAND="cmake -q --parallel=$(nproc) --log-level=WARNING -DCMAKE_RULE_MESSAGES=OFF -DCMAKE_INSTALL_MESSAGE=NEVER"
+ENV CMAKE_COMMAND="cmake --log-level=WARNING -DCMAKE_RULE_MESSAGES=OFF -DCMAKE_INSTALL_MESSAGE=NEVER"
 ENV CMAKE_HOST_ARGS="-DCMAKE_INSTALL_PREFIX=${LLVM_SYSROOT}/usr -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=lld"
 ENV CMAKE_HOST="$CMAKE_COMMAND $CMAKE_HOST_ARGS"
 ENV CMAKE_TARGET=${CROSS_COMPILER_TARGET_ARCH}-linux-musl
