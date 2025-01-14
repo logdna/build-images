@@ -45,6 +45,10 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
         --features=azure,s3,openssl/vendored --no-default-features \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image sccache" && \
+    cargo install -q cargo-tarpaulin --root /out/tools --version "^0.27" \
+        --features=vendored-openssl \
+        --target=${!TARGETARCH}-unknown-linux-musl && \
+    echo "built build image cargo-tarpaulin" && \
     cargo binstall -y -q cargo-nextest --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-nextest" && \
@@ -54,9 +58,6 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     cargo binstall -y -q cargo-xwin --version 0.16 --locked --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-xwin" && \
-    cargo binstall -y -q cargo-tarpaulin --version 0.27 --no-symlinks --install-path /out/tools \
-        --target=${!TARGETARCH}-unknown-linux-musl && \
-    echo "built build image cargo-tarpaulin" && \
     cargo binstall -y -q flamegraph --version 0.6 --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-flamegraph" && \
