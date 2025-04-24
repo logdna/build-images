@@ -40,12 +40,14 @@ RUN DEPS="ca-certificates curl file m4 make locales pkg-config xz-utils cmake \
           systemd libsystemd-dev patch osslsigncode openssh-client \
           openssl libengine-pkcs11-openssl gnutls-bin xxd \
           libssl-dev bzip2 gcc g++ libtool m4 libc6-dev libcap-dev" \
+  # install apt-fast to handle installing apt dependencies, helps with flaky debian mirrors
+  && /bin/bash -c "$(curl -sL https://git.io/vokNn)" \
   && apt-get update  > /dev/null \
   && apt-key add /llvm-snapshot.gpg.key \
-  && apt-get install -y --no-install-recommends software-properties-common > /dev/null \
+  && apt-fast install -y --no-install-recommends software-properties-common > /dev/null \
   && add-apt-repository "deb http://apt.llvm.org/${VARIANT_VERSION}/ llvm-toolchain-${VARIANT_VERSION}-${LLVM_MAJOR_VERSION} main" \
   && apt-get update > /dev/null \
-  && apt-get install -y --no-install-recommends $DEPS > /dev/null \
+  && apt-fast install -y --no-install-recommends $DEPS > /dev/null \
   && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
   && locale-gen en_US.UTF-8 \
   && /usr/sbin/update-locale LANG=en_US.UTF-8 \
@@ -78,7 +80,7 @@ RUN if [[ "${VARIANT_VERSION}" != "buster" ]] ; then \
     mkdir -pm755 /etc/apt/keyrings && wget -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key && \
     wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/debian/dists/"${VARIANT_VERSION}"/winehq-"${VARIANT_VERSION}".sources && \
     apt update -y && \
-    apt install -y meson valac-bin valac libgsf-1-dev bats bison libgcab-dev libgirepository1.0-dev winehq-stable && \
+    apt-fast install -y meson valac-bin valac libgsf-1-dev bats bison libgcab-dev libgirepository1.0-dev winehq-stable && \
     git clone --depth 1 --branch v0.103 --recurse-submodules https://github.com/GNOME/msitools.git && \
     mkdir ./msitools/target && pushd ./msitools/target && \
     meson .. && ninja install && popd && rm -rf ./msitools && ldconfig && wixl --version && \
@@ -97,7 +99,7 @@ ARG VERSION="stable"
 # Install rust
 ENV CARGO_HOME=/opt/rust/cargo
 RUN curl --retry 10 -sSfL https://sh.rustup.rs -sSf | \
-    sh -s -- -q -y --default-toolchain $VERSION --component clippy --component llvm-tools-preview rustfmt --profile minimal --no-modify-path && \
+    sh -s -- -q -y --default-toolchain $VERSION --component clippy --component llvm-tools-preview --component rustfmt --profile minimal --no-modify-path && \
     chmod -R a+rw $RUSTUP_HOME $CARGO_HOME
 
 ## Set up default cargo env vars for cross compiling
