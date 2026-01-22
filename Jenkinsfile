@@ -17,6 +17,7 @@ pipeline {
     DOCKER_BUILDKIT='1'
     SCCACHE_BUCKET='logdna-sccache-us-east-1'
     SCCACHE_REGION='us-east-1'
+    BUILDX_NO_DEFAULT_ATTESTATIONS='1'
   }
   parameters {
     booleanParam(name: 'PUBLISH_GCR_IMAGE', description: 'Publish docker image to Google Container Registry (GCR)', defaultValue: false)
