@@ -49,22 +49,22 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
         --features=vendored-openssl \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-tarpaulin" && \
-    cargo install -q cargo-nextest --locked --root /out/tools \
+    cargo install cargo-nextest --locked --root /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-nextest" && \
-    cargo binstall -y -q cargo-llvm-cov --no-symlinks --install-path /out/tools \
+    cargo binstall -y cargo-llvm-cov --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-llvm-cov" && \
-    cargo binstall -y -q cargo-xwin --version 0.16 --locked --no-symlinks --install-path /out/tools \
+    cargo binstall -y cargo-xwin --version 0.16 --locked --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-xwin" && \
     cargo binstall -y flamegraph --version 0.6.11 --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-flamegraph" && \
-    cargo binstall -y -q cargo-cache --version 0.8 --no-symlinks --install-path /out/tools \
+    cargo binstall -y cargo-cache --version 0.8 --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-cache" && \
-    cargo binstall -y -q cargo-audit --version 0.21 --no-symlinks --install-path /out/tools \
+    cargo binstall -y cargo-audit --version 0.21 --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-audit" && \
 #    cargo install -q cargo-udeps --version '^0.1' --root /out/tools \
