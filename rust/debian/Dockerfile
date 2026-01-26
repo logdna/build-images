@@ -49,7 +49,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
         --features=vendored-openssl \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-tarpaulin" && \
-    cargo install -q cargo-nextest --root /out/tools \
+    cargo install -q cargo-nextest --locked --root /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-nextest" && \
     cargo binstall -y -q cargo-llvm-cov --no-symlinks --install-path /out/tools \
