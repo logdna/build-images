@@ -58,7 +58,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     cargo binstall -y cargo-xwin --version 0.16 --locked --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-xwin" && \
-    cargo binstall -y flamegraph --version 0.6.11 --no-symlinks --install-path /out/tools \
+    cargo install flamegraph --version 0.6.11 --root /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-flamegraph" && \
     cargo binstall -y cargo-cache --version 0.8 --no-symlinks --install-path /out/tools \
