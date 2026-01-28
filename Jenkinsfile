@@ -266,7 +266,7 @@ pipeline {
 
                       // Dockerhub image
                       docker.withRegistry(
-                                'https://index.docker.io/v1/',
+                                'https://docker.io',
                                 'dockerhub-username-password') {
                             buildImage(
                                 repo_base: "docker.io/logdna",
@@ -364,7 +364,7 @@ pipeline {
             steps {
               script {
                 // Dockerhub image
-                docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-username-password') {
+                docker.withRegistry('https://docker.io', 'dockerhub-username-password') {
                   def docker_manifest_name = createMultiArchImageManifest(
                       repo_base: "docker.io/logdna",
                       , name: "build-images"
