@@ -59,7 +59,7 @@ pipeline {
         }
         agent {
           node {
-            label 'ec2-fleet'
+            label 'rust-x86_64'
             customWorkspace "docker-images-${BUILD_NUMBER}"
           }
         }
@@ -131,7 +131,7 @@ pipeline {
         }
         agent {
           node {
-            label 'ec2-fleet'
+            label 'rust-x86_64'
             customWorkspace "docker-images-${BUILD_NUMBER}"
           }
         }
@@ -178,7 +178,7 @@ pipeline {
         }
         agent {
           node {
-            label 'ec2-fleet'
+            label 'rust-x86_64'
             customWorkspace "docker-images-${BUILD_NUMBER}"
           }
         }
@@ -321,7 +321,7 @@ pipeline {
         }
         agent {
           node {
-            label 'ec2-fleet'
+            label 'rust-x86_64'
             customWorkspace "docker-images-${BUILD_NUMBER}"
           }
         }
