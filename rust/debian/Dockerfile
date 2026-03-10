@@ -3,7 +3,7 @@ ARG BASE_IMAGE=logdna/build-images/rust-buster-1-stable-base-${CROSS_COMPILER_TA
 
 # Image that runs natively on the BUILDPLATFORM to produce cross compile
 # artifacts
-FROM --platform=${BUILDPLATFORM} ${BASE_IMAGE} as build
+FROM --platform=${BUILDPLATFORM} ${BASE_IMAGE} AS build
 
 SHELL ["/bin/bash", "-c"]
 
@@ -64,7 +64,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     cargo binstall -y cargo-cache --version 0.8 --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-cache" && \
-    cargo install cargo-audit --version 0.22.0 --locked --root /out/tools \
+    cargo binstall -y cargo-audit --version 0.22.1 --locked --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-audit" && \
 #    cargo install -q cargo-udeps --version '^0.1' --root /out/tools \
