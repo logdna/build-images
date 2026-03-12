@@ -266,7 +266,7 @@ pipeline {
 
                       // Dockerhub image
                       docker.withRegistry(
-                                'https://index.docker.io/v1/',
+                                '',
                                 'dockerhub-username-password') {
                             buildImage(
                                 repo_base: "docker.io/logdna",
@@ -364,7 +364,7 @@ pipeline {
             steps {
               script {
                 // Dockerhub image
-                docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-username-password') {
+                docker.withRegistry('', 'dockerhub-username-password') {
                   def docker_manifest_name = createMultiArchImageManifest(
                       repo_base: "docker.io/logdna",
                       , name: "build-images"
@@ -463,17 +463,17 @@ def buildImage(Map config = [:]) {
   , "plain"
   ]
 
-  if (env.SCCACHE_BUCKET != null && env.SCCACHE_REGION != null) {
-    buildArgs.push("--build-arg")
-    buildArgs.push(["SCCACHE_BUCKET", env.SCCACHE_BUCKET].join("="))
-    buildArgs.push("--build-arg")
-    buildArgs.push(["SCCACHE_REGION", env.SCCACHE_REGION].join("="))
-  } else {
-    buildArgs.push("--build-arg")
-    buildArgs.push("RUSTC_WRAPPER=")
-    buildArgs.push("--build-arg")
-    buildArgs.push("CC_WRAPPER=")
-  }
+  // if (env.SCCACHE_BUCKET != null && env.SCCACHE_REGION != null) {
+  //   buildArgs.push("--build-arg")
+  //   buildArgs.push(["SCCACHE_BUCKET", env.SCCACHE_BUCKET].join("="))
+  //   buildArgs.push("--build-arg")
+  //   buildArgs.push(["SCCACHE_REGION", env.SCCACHE_REGION].join("="))
+  // } else {
+  buildArgs.push("--build-arg")
+  buildArgs.push("RUSTC_WRAPPER=")
+  buildArgs.push("--build-arg")
+  buildArgs.push("CC_WRAPPER=")
+  // }
 
   if (config.pull) {
     buildArgs.push("--pull")
