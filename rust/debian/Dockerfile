@@ -55,7 +55,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     cargo binstall -y cargo-llvm-cov --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-llvm-cov" && \
-    cargo binstall -y cargo-xwin --version 0.16 --locked --no-symlinks --install-path /out/tools \
+    cargo binstall -y cargo-xwin --version 0.21.4 --locked --no-symlinks --install-path /out/tools \
         --target=${!TARGETARCH}-unknown-linux-musl && \
     echo "built build image cargo-xwin" && \
     cargo install flamegraph --version 0.6.11 --root /out/tools \
@@ -291,7 +291,7 @@ ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER="/usr/local/bin/x86_64-unknown
 
 ENV XWIN_CACHE_DIR="${CARGO_HOME}/xwin"
 ENV XWIN_TOOLKIT_BIN_PATH="/usr/local/bin"
-ENV XWIN_VERSION=16
+ENV XWIN_VERSION=21
 
 RUN rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-musl && \
     rustup target add ${CROSS_COMPILER_TARGET_ARCH}-unknown-linux-gnu  && \
