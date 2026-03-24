@@ -463,17 +463,17 @@ def buildImage(Map config = [:]) {
   , "plain"
   ]
 
-  if (env.SCCACHE_BUCKET != null && env.SCCACHE_REGION != null) {
-    buildArgs.push("--build-arg")
-    buildArgs.push(["SCCACHE_BUCKET", env.SCCACHE_BUCKET].join("="))
-    buildArgs.push("--build-arg")
-    buildArgs.push(["SCCACHE_REGION", env.SCCACHE_REGION].join("="))
-  } else {
-    buildArgs.push("--build-arg")
-    buildArgs.push("RUSTC_WRAPPER=")
-    buildArgs.push("--build-arg")
-    buildArgs.push("CC_WRAPPER=")
-  }
+  // if (env.SCCACHE_BUCKET != null && env.SCCACHE_REGION != null) {
+  //   buildArgs.push("--build-arg")
+  //   buildArgs.push(["SCCACHE_BUCKET", env.SCCACHE_BUCKET].join("="))
+  //   buildArgs.push("--build-arg")
+  //   buildArgs.push(["SCCACHE_REGION", env.SCCACHE_REGION].join("="))
+  // } else {
+  buildArgs.push("--build-arg")
+  buildArgs.push("RUSTC_WRAPPER=")
+  buildArgs.push("--build-arg")
+  buildArgs.push("CC_WRAPPER=")
+  // }
 
   if (config.pull) {
     buildArgs.push("--pull")

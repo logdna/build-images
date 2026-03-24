@@ -35,7 +35,7 @@ RUN --mount=type=secret,id=aws,target=/root/.aws/credentials \
     # Install sccache for this image \
     curl --retry 10 -LsSf "${CARGO_BINSTALL_URL_BASE}/cargo-binstall-${!BUILDARCH}-unknown-linux-musl.tgz" \
     | tar -xzC /usr/local/bin/ && \
-    cargo install -q sccache --root "/usr/local/" --version 0.3.3 --features=azure,s3,openssl/vendored --no-default-features && \
+    cargo install -q sccache --root "/usr/local/" --version 0.14.0 --features=azure,s3,openssl/vendored --no-default-features && \
     echo "installed build build image sccache" && \
     if [ -n "$SCCACHE_BUCKET" ]; then export RUSTC_WRAPPER=/usr/local/bin/sccache; fi && \
     if [ -z "$SCCACHE_ENDPOINT" ]; then unset SCCACHE_ENDPOINT; fi && \
